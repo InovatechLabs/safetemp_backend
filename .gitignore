@@ -1,7 +1,8 @@
 # Gradle files
 .gradle/
 build/
-
+node_modules/
+.env
 # Local configuration file (sdk path, etc)
 local.properties
 
@@ -32,3 +33,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+/src/generated/prisma
+node_modules/

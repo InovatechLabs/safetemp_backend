@@ -1,0 +1,29 @@
+{
+  "name": "safetemp_backend",
+  "version": "1.0.0",
+  "description": "Aplicação designada para monitoramento de temperatura em uma estufa",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.5.2",
+    "prisma": "^6.16.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "body-parser": "^2.2.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "mysql2": "^3.15.0"
+  }
+}
