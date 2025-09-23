@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
@@ -30,7 +30,7 @@ async function startServer() {
         console.log("✅ Conectado ao MySQL com sucesso");
 
         app.listen(PORT, () => {
-            console.log(`🚀 Servidor rodando em ${process.env.BACKEND_URL}:${PORT}`);
+            console.log(`🚀 Servidor rodando em ${process.env.BACKEND_URL}`);
         });
     } catch (error) {
         console.error(`❌ Erro ao iniciar servidor: `, error);
