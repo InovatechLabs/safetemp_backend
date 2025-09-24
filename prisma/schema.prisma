@@ -25,8 +25,7 @@ model User {
   id                Int      @id @default(autoincrement())
   name              String
   email             String   @unique
-  password             String
-  role              String
+  password          String
   resetToken        String?
   resetTokenExpires DateTime?
   is2FAEnabled      Boolean? @default(false)
@@ -34,3 +33,7 @@ model User {
   backupCode        String?
 }
 
+model Device {
+  id                Int      @id @default(autoincrement())
+  mac_address       String   @unique
+}

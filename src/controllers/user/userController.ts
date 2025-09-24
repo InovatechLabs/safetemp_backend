@@ -21,7 +21,7 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
         if(!passwordValidator(password)) return res.status(400).json({ message: 'A senha não atende aos requisitos mínimos e/ou não possui caracteres suficientes.'})
 
         const user = await prisma.user.findUnique({ 
-            where: email 
+            where: { email }
         });
 
         if (user) return res.status(400).json({ message: 'E-mail já cadastrado.'})    
@@ -30,11 +30,11 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
         const hashedPassword = await bcrypt.hash(password, salt);
         
         const newUser = await prisma.user.create({
-            data: {
-                name, 
-                email, 
-                password: hashedPassword
-            },
+         data: {
+            name,
+            email,
+            password: hashedPassword
+         },
         }); 
         res.status(201).json(newUser);
     } catch (error) {
@@ -53,12 +53,13 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
         if(!email || !password) return res.status(401).json({ message: 'Todos credenciais são necessários.'})
 
         const user = await prisma.user.findUnique({
-            where: email
+            where: { email }
         });
 
+        if(!user) return res.status(404).json({ message: 'Usuário não cadastrado.'});
         const validPassword = await bcrypt.compare(password, user.password);
 
-        if(!user) return res.status(404).json({ message: 'Usuário não cadastrado.'});
+
         if(!validPassword) return res.status(400).json({ message: 'Senha incorreta.'});
 
         const token = jwt.sign({ id: user.id}, process.env.JWT_SECRET!, {expiresIn: '1h'});
