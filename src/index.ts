@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
 import userRouter from './routes/user/userRoutes';
+import dataRouter from './routes/arduino/dataRoutes';
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ const prisma = new PrismaClient();
 
 // ===================== MIDDLEWARES =====================
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: "*",
     credentials: true
 }));
 
@@ -24,6 +25,7 @@ app.use(cookieParser());
 // ===================== ROTAS =====================
 
 app.use("/api/user", userRouter);    // Autenticação
+app.use("/api/data", dataRouter);    // Registro de dados 
 
 
 async function startServer() {
@@ -35,7 +37,7 @@ async function startServer() {
         await prisma.$queryRaw`SELECT 1`;
         console.log("✅ Conectado ao MySQL com sucesso");
 
-        app.listen(PORT, () => {
+        app.listen(PORT, "0.0.0.0", () => {
             console.log(`🚀 Servidor rodando em ${process.env.BACKEND_URL}`);
         });
     } catch (error) {
