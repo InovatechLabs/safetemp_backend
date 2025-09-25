@@ -10,7 +10,7 @@ export const registerTemperature = async ( req: Request, res: Response ) => {
 
     const { chipId, temp, timestamp } = req.body;
 
-    if (!chipId || !timestamp || temp === undefined) return res.status(400).json({ message: 'Todos dados são necessários.' });
+    if (!chipId || temp === undefined) return res.status(400).json({ message: 'Todos dados são necessários.' });
 
     try {
 
@@ -20,11 +20,15 @@ export const registerTemperature = async ( req: Request, res: Response ) => {
 
         if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
 
+         const nowUtc = new Date();
+        const offset = -3 * 60; // -3 horas em minutos
+        nowUtc.setMinutes(nowUtc.getMinutes() + offset);
+
         const tempRegister = await prisma.temperatura.create({
             data: {
                 chipId,
                 value: temp,
-                timestamp: timestamp ? new Date(timestamp) : undefined
+                timestamp: nowUtc
             },
         });
         res.status(201).json(tempRegister);
