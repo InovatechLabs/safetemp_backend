@@ -36,7 +36,12 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
             password: hashedPassword
          },
         }); 
-        res.status(201).json(newUser);
+        res.status(201).json({
+
+            success: true,
+            newUser
+        
+        });
     } catch (error) {
 
         console.error("Erro ao registrar usuário:", error);
@@ -63,7 +68,11 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
         if(!validPassword) return res.status(400).json({ message: 'Senha incorreta.'});
 
         const token = jwt.sign({ id: user.id}, process.env.JWT_SECRET!, {expiresIn: '1h'});
-        return res.status(200).json({ token })
+        return res.status(200).json({ 
+
+            success: true,
+            token 
+        })
    
     } catch (error) {
 
