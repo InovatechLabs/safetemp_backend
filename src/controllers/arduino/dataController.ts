@@ -37,3 +37,21 @@ export const registerTemperature = async ( req: Request, res: Response ) => {
         res.status(500).json({ message: 'Erro interno do servidor' });
     }
 }
+
+export const getLastRecord = async (req: Request, res: Response) => {
+
+    try {
+        const lastRecord = await prisma.temperatura.findFirst({
+            orderBy: {
+                id: "desc"
+            },
+            take: 1,
+        });
+
+        res.status(200).json({
+            lastRecord
+        });
+    } catch (error) {
+        throw new Error(`Erro ao coletar ultimo dado: ${error}`);
+    };
+}
