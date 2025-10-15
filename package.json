@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Aplicação designada para monitoramento de temperatura em uma estufa",
   "main": "index.js",
-
   "scripts": {
     "build": "tsc",
     "test": "jest",
@@ -18,12 +17,12 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.5.2",
-    "prisma": "^6.16.2",
+    "prisma": "^6.17.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "^6.17.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cookie-parser": "^1.4.7",
@@ -32,6 +31,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.15.0",
+    "path": "^0.12.7",
     "ts-node": "^10.9.2"
   }
 }

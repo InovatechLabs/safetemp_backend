@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
 import userRouter from './routes/user/userRoutes';
 import dataRouter from './routes/arduino/dataRoutes';
+import firmwareRouter from './routes/arduino/firmwareRoutes/updateFirmware';
 
 dotenv.config();
 
@@ -26,6 +27,8 @@ app.use(cookieParser());
 
 app.use("/api/user", userRouter);    // Autenticação
 app.use("/api/data", dataRouter);    // Registro de dados 
+app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware 
+
 
 
 async function startServer() {
