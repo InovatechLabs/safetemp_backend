@@ -32,7 +32,7 @@ export const firmwareVersion = async (req: Request, res: Response) => {
         const firmwareBuffer = fs.readFileSync(firmwarePath);
         const hash = crypto.createHash("sha256").update(firmwareBuffer).digest("hex");
 
-        const baseUrl = `${req.protocol}s://${req.get("host")}/api/firmware`;
+        const baseUrl = `https://${req.get("host")}/api/firmware`;
 
         return res.json({
             version,
