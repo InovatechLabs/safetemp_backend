@@ -6,6 +6,7 @@
 #include <Update.h>
 #include <Preferences.h>
 #include <time.h>
+#include <WiFiClientSecure.h>
 
 // ======================
 // 🔧 CONFIGURAÇÕES GERAIS
@@ -62,37 +63,43 @@ bool isNewerVersion(const char* current, const char* latest) {
 // 🔄 FUNÇÃO DE ATUALIZAÇÃO OTA
 // ======================
 void performOTA(const char* firmwareUrl, const char* latestVersion) {
-  WiFiClient client;
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
 
   Serial.printf("\n📦 Baixando firmware de: %s\n", firmwareUrl);
 
-  http.begin(client, firmwareUrl);
+  if (!http.begin(client, firmwareUrl)) {
+    Serial.println("❌ Não foi possível iniciar HTTPClient!");
+    return;
+  }
+
   int httpCode = http.GET();
 
   if (httpCode == 200) {
     int contentLength = http.getSize();
-    bool canBegin = Update.begin(contentLength);
 
-    if (canBegin) {
-      WiFiClient* stream = http.getStreamPtr();
-      size_t written = Update.writeStream(*stream);
+    if (!Update.begin(contentLength)) {
+      Serial.println("❌ Não foi possível iniciar OTA.");
+      http.end();
+      return;
+    }
 
-      if (written == contentLength) {
-        Serial.println("✅ Firmware baixado com sucesso!");
-      } else {
-        Serial.printf("⚠️ Download incompleto: %d/%d bytes\n", written, contentLength);
-      }
+    WiFiClient* stream = http.getStreamPtr();
+    size_t written = Update.writeStream(*stream);
 
-      if (Update.end(true)) { // true = reinicia automaticamente
-        Serial.printf("🔥 Atualização OTA concluída! Nova versão: %s\n", latestVersion);
-        preferences.putString("version", latestVersion);
-        Serial.println("💾 Versão salva na NVS.");
-      } else {
-        Serial.printf("❌ OTA falhou: %s\n", Update.errorString());
-      }
+    if (written == contentLength) {
+      Serial.println("✅ Firmware baixado com sucesso!");
     } else {
-      Serial.println("❌ Não foi possível iniciar atualização OTA.");
+      Serial.printf("⚠️ Download incompleto: %d/%d bytes\n", written, contentLength);
+    }
+
+    if (Update.end(true)) { // true = reinicia automaticamente
+      Serial.printf("🔥 Atualização OTA concluída! Nova versão: %s\n", latestVersion);
+      preferences.putString("version", latestVersion);
+      Serial.println("💾 Versão salva na NVS.");
+    } else {
+      Serial.printf("❌ OTA falhou: %s\n", Update.errorString());
     }
   } else {
     Serial.printf("❌ Erro HTTP OTA: %d\n", httpCode);
@@ -194,7 +201,7 @@ void setup() {
 
   // Inicializar NVS
   preferences.begin("firmware", false);
-  firmwareVersion = preferences.getString("version", "1.0.0");
+  firmwareVersion = preferences.getString("version", "1.0.1");
   Serial.print("📦 Versão atual instalada: ");
   Serial.println(firmwareVersion);
 
