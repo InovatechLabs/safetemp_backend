@@ -56,6 +56,7 @@ export const downloadFirmware = async (req: Request, res: Response) => {
 
         if(!fs.existsSync(filePath)) return res.status(404).json({ message: 'Arquivo não encontrado.' });
 
+        res.setHeader('Content-Type', 'application/octet-stream');
         res.sendFile(filePath);
     } catch (error) {
         console.error("Erro ao enviar firmware: ", error);
