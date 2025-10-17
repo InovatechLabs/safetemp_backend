@@ -74,7 +74,12 @@ void performOTA(const char* firmwareUrl, const char* latestVersion) {
     return;
   }
 
+http.addHeader("Accept", "application/octet-stream");
+
+http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   int httpCode = http.GET();
+
+  
 
   if (httpCode == 200) {
     int contentLength = http.getSize();
@@ -201,7 +206,7 @@ void setup() {
 
   // Inicializar NVS
   preferences.begin("firmware", false);
-  firmwareVersion = preferences.getString("version", "1.0.1");
+  firmwareVersion = preferences.getString("version", "1.0.2");
   Serial.print("📦 Versão atual instalada: ");
   Serial.println(firmwareVersion);
 
