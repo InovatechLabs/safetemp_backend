@@ -49,17 +49,28 @@ export const firmwareVersion = async (req: Request, res: Response) => {
     }
 };
 
-export const downloadFirmware = async (req: Request, res: Response) => {
-    try {
-        const { file } = req.params;
-        const filePath = path.join(firmwareDir, file);
+export const downloadFirmware = (req: Request, res: Response) => {
+  try {
+    const { file } = req.params;
+    const filePath = path.join(firmwareDir, file);
 
-        if(!fs.existsSync(filePath)) return res.status(404).json({ message: 'Arquivo não encontrado.' });
-
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.sendFile(filePath);
-    } catch (error) {
-        console.error("Erro ao enviar firmware: ", error);
-        return res.status(500).json({ message: 'Erro interno do servidor' });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Arquivo não encontrado." });
     }
+
+    const stat = fs.statSync(filePath);
+
+    res.writeHead(200, {
+      "Content-Type": "application/octet-stream",
+      "Content-Length": stat.size,
+      "Connection": "close"
+    });
+
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+
+  } catch (error) {
+    console.error("Erro ao enviar firmware: ", error);
+    return res.status(500).json({ message: "Erro interno do servidor" });
+  }
 };
