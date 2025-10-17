@@ -54,4 +54,59 @@ export const getLastRecord = async (req: Request, res: Response) => {
     } catch (error) {
         throw new Error(`Erro ao coletar ultimo dado: ${error}`);
     };
+};
+
+export const getTemperatures = async (req: Request, res: Response) => {
+
+    const { date } = req.query;
+
+    if(!date) return res.status(400).json({ message: 'Por favor, informe os parâmetros para consulta' });
+
+    const start = new Date(`${date}T00:00:00.000Z`);
+    const end = new Date(`${date}T23:59:59.999Z`);
+
+    try {
+        const records = await prisma.temperatura.findMany({
+            where: {
+                timestamp: {
+                    gte: start,
+                    lte: end,
+                },
+            },
+            orderBy: {timestamp: `asc` },
+        });
+        res.json(records);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+}
+
+export const getTemperatures6h = async (req: Request, res: Response) => {
+
+    const now = new Date();
+
+    // IMPORTANTE: esta timestamp leva em consideração o ajuste de timezone do Render, o qual utiliza UTC +0, portanto,
+    // é necessário subtrair -3 horas para se adequar ao horario de Brasilia. Assim que a api for movida para o Azure,
+    // utilize  - 6 apenas e não (6 + 3).
+
+    // const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const sixHoursAgo = new Date(now.getTime() - (6 + 3)  * 60 * 60 * 1000);
+
+      try {
+    const records = await prisma.temperatura.findMany({
+      where: {
+        timestamp: {
+          gte: sixHoursAgo,
+          lte: now,
+        },
+      },
+      orderBy: { timestamp: 'asc' },
+    });
+
+    res.json(records);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao buscar últimos dados' });
+  }
 }
