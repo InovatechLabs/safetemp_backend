@@ -15,7 +15,7 @@ const prisma = new PrismaClient();
 
 // ===================== MIDDLEWARES =====================
 app.use(cors({
-    origin: "*",
+    origin: true,
     credentials: true
 }));
 
