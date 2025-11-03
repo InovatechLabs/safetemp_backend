@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { calcStats } from '../../utils/statistics';
 
 dotenv.config();
 
@@ -75,7 +76,11 @@ export const getTemperatures = async (req: Request, res: Response) => {
             },
             orderBy: {timestamp: `asc` },
         });
-        res.json(records);
+
+        const sv = records.map(r => r.value);
+        const statistics = calcStats(sv);
+
+        res.json({ records, statistics });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: 'Erro interno do servidor.' });
@@ -104,7 +109,37 @@ export const getTemperatures6h = async (req: Request, res: Response) => {
       orderBy: { timestamp: 'asc' },
     });
 
-    res.json(records);
+    const sv = records.map(r => r.value);
+    const statistics = calcStats(sv);
+
+    res.json({ records, statistics });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao buscar últimos dados' });
+  }
+};
+
+export const getHistory1h = async (req: Request, res: Response) => {
+    
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - (1 + 3)  * 60 * 60 * 1000);
+
+    try {
+        const records = await prisma.temperatura.findMany({
+      where: {
+        timestamp: {
+          gte: oneHourAgo,
+          lte: now,
+        },
+      },
+      orderBy: { timestamp: 'asc' },
+    });
+
+    const sv = records.map(r => r.value);
+    const statistics = calcStats(sv);
+
+
+    res.json({ records, statistics });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao buscar últimos dados' });
