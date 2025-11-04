@@ -55,7 +55,7 @@ export const saveUserToken = async (req: AuthenticatedRequest, res: Response) =>
     
         const user = await prisma.user.update({
             where: { id: userId },
-            data: expoPushToken,
+            data: { expoPushToken: expoPushToken },
         });
         res.json(user);
     } catch (err) {
