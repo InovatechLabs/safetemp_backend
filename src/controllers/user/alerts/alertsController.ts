@@ -63,3 +63,25 @@ export const saveUserToken = async (req: AuthenticatedRequest, res: Response) =>
         res.status(500).json({ message: 'Erro ao salvar token de push'});
     }
 };
+
+export const listUserAlerts = async (req: AuthenticatedRequest, res: Response) => {
+
+    try {
+        
+        if (!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+        const userId = req.user.id;
+
+        const list = await prisma.alerts.findMany({
+            where: { 
+            user_id: userId 
+            },
+            orderBy: {
+                criado_em: 'desc'   
+            },
+        });
+        return res.status(200).json(list);
+    } catch (error) {
+        console.error("Não foi possível retornar alertas de usuário:", error)
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+};
