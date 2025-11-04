@@ -17,14 +17,22 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
       if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
     
 
+    const adjustTimezone = (dateString: string | Date | null): Date | null => {
+        
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
+    date.setHours(date.getHours() - 3); 
+    return date;
+};
     const userId = req.user.id;
         const alert = await prisma.alerts.create({
             data: {
                 user_id: userId,
                 temperatura_min,
                 temperatura_max,
-                hora_inicio: hora_inicio ? new Date(hora_inicio) : null,
-                hora_fim: hora_fim ? new Date(hora_fim) : null,
+                hora_inicio: hora_inicio ? adjustTimezone(hora_inicio) : null,
+                hora_fim: hora_fim ? adjustTimezone(hora_fim) : null,
             },
         });
 

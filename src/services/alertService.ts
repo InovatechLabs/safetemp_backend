@@ -18,6 +18,7 @@ export const verificarAlertas = async () => {
 
     const temperaturaAtual = lastRecord.value; 
     const now = new Date();
+    now.setHours(now.getHours() - 3);
 
     const alertas = await prisma.alerts.findMany({
       where: {
