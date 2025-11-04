@@ -9,10 +9,15 @@ dotenv.config();
 const prisma = new PrismaClient();
 const expo = new Expo();
 
-export const registerAlert = async (req: Request, res: Response) => {
+export const registerAlert = async (req: AuthenticatedRequest, res: Response) => {
 
-    const { userId, temperatura_min, temperatura_max, hora_inicio, hora_fim } = req.body;
+    const { temperatura_min, temperatura_max, hora_inicio, hora_fim } = req.body;
     try {
+
+      if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
+    
+
+    const userId = req.user.id;
         const alert = await prisma.alerts.create({
             data: {
                 user_id: userId,
