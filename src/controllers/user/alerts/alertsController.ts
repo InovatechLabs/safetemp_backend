@@ -35,6 +35,7 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
                 temperatura_max,
                 hora_inicio: utcHoraInicio, 
                 hora_fim: utcHoraFim,
+                ativo: true,
             },
         });
 
@@ -85,3 +86,45 @@ export const listUserAlerts = async (req: AuthenticatedRequest, res: Response) =
         return res.status(500).json({ message: 'Erro interno do servidor' });
     }
 };
+
+export const deleteAlert = async (req: AuthenticatedRequest, res: Response) => {
+
+    const { id } = req.params;
+
+    try {
+        if(!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+
+        const userId = req.user.id; 
+        const alertId = Number(id);
+
+        const alert = await prisma.alerts.findFirst({
+            where: {
+                id: alertId,
+                user_id: userId,
+            },
+        });
+        if(!alert) return res.status(404).json({ message: 'Alerta não encontrado.' });
+
+        await prisma.alerts.delete({
+            where: {
+                id: alert.id
+            },
+        });
+
+        res.status(200).json({ message: 'Alerta excluído com sucesso.' });
+    } catch (error) {
+        console.error("Não foi possível excluir alerta:", error);
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+};
+
+export const list = async (req: Request, res: Response) => {
+
+    try {
+        const alerts = await prisma.alerts.findMany();
+        res.status(200).json(alerts);
+    } catch (error) {
+        console.error("Erro ao listar alertas:", error);
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+}

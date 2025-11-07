@@ -48,5 +48,7 @@ model Alerts {
   hora_inicio       DateTime?  
   hora_fim          DateTime?   
   criado_em         DateTime    @default(now())
+  ativo             Boolean     @default(true)
+  notificacaoAtiva  Boolean     @default(false)
   user              User        @relation(fields: [user_id], references: [id])
 }
