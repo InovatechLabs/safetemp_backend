@@ -57,7 +57,7 @@ model Relatorios {
   id                Int      @id @default(autoincrement())
   chip_id           String
   data              DateTime
-  relatorio         String
-  resumo            String
+  relatorio         String   @db.NVarChar(MAX)
+  resumo            String   @db.NVarChar(MAX)
   criado_em         DateTime   @default(now())
 }

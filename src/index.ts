@@ -9,6 +9,7 @@ import dataRouter from './routes/arduino/dataRoutes';
 import firmwareRouter from './routes/arduino/firmwareRoutes/updateFirmware';
 import alertsRouter from './routes/user/alerts/alertsRoutes';
 import './jobs/alertChecker';
+import './scheduler/reportScheduler';
 
 dotenv.config();
 
