@@ -52,3 +52,12 @@ model Alerts {
   notificacaoAtiva  Boolean     @default(false)
   user              User        @relation(fields: [user_id], references: [id])
 }
+
+model Relatorios {
+  id                Int      @id @default(autoincrement())
+  chip_id           String
+  data              DateTime
+  relatorio         String
+  resumo            String
+  criado_em         DateTime   @default(now())
+}

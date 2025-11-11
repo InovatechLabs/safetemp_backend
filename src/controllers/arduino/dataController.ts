@@ -59,33 +59,49 @@ export const getLastRecord = async (req: Request, res: Response) => {
 
 export const getTemperatures = async (req: Request, res: Response) => {
 
-    const { date } = req.query;
+    const { date, start, end } = req.query;
 
-    if(!date) return res.status(400).json({ message: 'Por favor, informe os parâmetros para consulta' });
+     if (!date && !start && !end) {
+       return res.status(400).json({ message: "Por favor, informe os parâmetros para consulta." });
+     }
 
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+  let startDate: Date;
+  let endDate: Date;
 
-    try {
-        const records = await prisma.temperatura.findMany({
-            where: {
-                timestamp: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-            orderBy: {timestamp: `asc` },
-        });
+  if (start && end) {
+    startDate = new Date(start as string);
+    endDate = new Date(end as string);
+  } else if (date) {
+    startDate = new Date(`${date}T00:00:00.000Z`);
+    endDate = new Date(`${date}T23:59:59.999Z`);
+  } else {
+    return res.status(400).json({ message: "Informe tanto 'date' quanto 'start' e 'end' corretamente." });
+  }
 
-        const sv = records.map(r => r.value);
-        const statistics = calcStats(sv);
+  try {
+    const records = await prisma.temperatura.findMany({
+      where: {
+        timestamp: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: { timestamp: "asc" },
+    });
 
-        res.json({ records, statistics });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: 'Erro interno do servidor.' });
+    if (records.length === 0) {
+      return res.status(200).json({ message: "Nenhum dado encontrado." });
     }
-}
+
+    const sv = records.map((r) => r.value);
+    const statistics = calcStats(sv);
+
+    res.json({ records, statistics });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Erro interno do servidor." });
+  }
+};
 
 export const getTemperatures6h = async (req: Request, res: Response) => {
 
