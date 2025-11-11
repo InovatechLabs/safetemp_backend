@@ -31,9 +31,33 @@ model User {
   is2FAEnabled      Boolean? @default(false)
   twoFASecret       String?
   backupCode        String?
+  expoPushToken     String?
+  alerts            Alerts[]
 }
 
 model Device {
   id                Int      @id @default(autoincrement())
   mac_address       String   @unique
+}
+
+model Alerts {
+  id                Int      @id @default(autoincrement())
+  user_id           Int
+  temperatura_min   Float?
+  temperatura_max   Float?
+  hora_inicio       DateTime?  
+  hora_fim          DateTime?   
+  criado_em         DateTime    @default(now())
+  ativo             Boolean     @default(true)
+  notificacaoAtiva  Boolean     @default(false)
+  user              User        @relation(fields: [user_id], references: [id])
+}
+
+model Relatorios {
+  id                Int      @id @default(autoincrement())
+  chip_id           String
+  data              DateTime
+  relatorio         String   @db.NVarChar(MAX)
+  resumo            String   @db.NVarChar(MAX)
+  criado_em         DateTime   @default(now())
 }

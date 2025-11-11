@@ -7,6 +7,9 @@ import { PrismaClient } from '@prisma/client';
 import userRouter from './routes/user/userRoutes';
 import dataRouter from './routes/arduino/dataRoutes';
 import firmwareRouter from './routes/arduino/firmwareRoutes/updateFirmware';
+import alertsRouter from './routes/user/alerts/alertsRoutes';
+import './jobs/alertChecker';
+import './scheduler/reportScheduler';
 
 dotenv.config();
 
@@ -28,6 +31,7 @@ app.use(cookieParser());
 app.use("/api/user", userRouter);    // Autenticação
 app.use("/api/data", dataRouter);    // Registro de dados 
 app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware 
+app.use("/api/alerts", alertsRouter); // Funcionalidade de alertas
 
 
 
