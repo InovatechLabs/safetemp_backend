@@ -118,6 +118,40 @@ export const deleteAlert = async (req: AuthenticatedRequest, res: Response) => {
     }
 };
 
+export const disableAlert = async (req: AuthenticatedRequest, res: Response) => {
+
+    const { id } = req.params;
+
+    try {
+        if(!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+
+        const userId = req.user.id; 
+        const alertId = Number(id);
+
+        const alert = await prisma.alerts.findFirst({
+            where: {
+                id: alertId,
+                user_id: userId,
+            },
+        });
+        if(!alert) return res.status(404).json({ message: 'Alerta não encontrado.' });
+
+        await prisma.alerts.update({
+            where: {
+                id: alert.id
+            },
+            data: {
+                ativo: false
+            }
+        });
+
+        res.status(200).json({ message: 'Alerta desativado com sucesso.' });
+    } catch (error) {
+        console.error("Não foi possível excluir alerta:", error);
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+};
+
 export const list = async (req: Request, res: Response) => {
 
     try {

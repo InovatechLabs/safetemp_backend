@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export async function getLastHourData() {
   const now = new Date();
-  const oneHourAgo = new Date(now.getTime() - (1 + 3) * 60 * 60 * 1000); 
+  const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000); 
 
   const records = await prisma.temperatura.findMany({
     where: {
