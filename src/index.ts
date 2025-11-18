@@ -10,8 +10,11 @@ import firmwareRouter from './routes/arduino/firmwareRoutes/updateFirmware';
 import alertsRouter from './routes/user/alerts/alertsRoutes';
 import './jobs/alertChecker';
 import './scheduler/reportScheduler';
+import TwoFARouter from './routes/user/2fa/2FARoutes';
 
-dotenv.config();
+dotenv.config({ path: ".env" });
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 const app = express();
 const prisma = new PrismaClient();
@@ -29,9 +32,11 @@ app.use(cookieParser());
 // ===================== ROTAS =====================
 
 app.use("/api/user", userRouter);    // Autenticação
+app.use("/api/2fa", TwoFARouter); // Autenticação dois fatores
 app.use("/api/data", dataRouter);    // Registro de dados 
 app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware 
 app.use("/api/alerts", alertsRouter); // Funcionalidade de alertas
+
 
 
 

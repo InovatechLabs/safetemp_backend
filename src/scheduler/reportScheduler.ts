@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+
 import { PrismaClient } from "@prisma/client";
 import type { HistoryResponse, PythonResponse, TemperatureRecord } from "../utils/types";
 import { getLastHourData } from "../services/dataService";
