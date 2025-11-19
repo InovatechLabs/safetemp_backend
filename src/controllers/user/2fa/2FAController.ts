@@ -50,40 +50,59 @@ export const enable2FA = async (req: AuthenticatedRequest, res: Response) => {
     }
 };
 
-export const verify2FA = async (req: AuthenticatedRequest, res: Response) => {
+export const verify2FA = async (req: Request, res: Response) => {
 
-    try {
-        const userId = req.user?.id;
-        const { token } = req.body;
+    if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
+    if (!process.env.JWT_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
+  try {
+    const { token2FA, tempToken } = req.body;
 
-        if (!req.user) return res.status(401).json({ message: 'Usuário não autenticado.' });
-
-        const user = await prisma.user.findUnique({
-            where: { id: userId }
-        });
-        if (!user || !user.twoFASecret) return res.status(400).json({ message: 'Autenticação dois fatores não configurada para este usuário.' });
-
-        const verified = speakeasy.totp.verify({
-            secret: user.twoFASecret,
-            encoding: 'base32',
-            token,
-            window: 1,
-        });
-        if (!verified) return res.status(401).json({ message: 'Token inválido ou mal configurado.' });
-
-        await prisma.user.update({
-            where: { id: userId },
-            data: {
-                is2FAEnabled: true
-            },
-        });
-        return res.status(200).json({ message: '2FA verificado com sucesso!' });
-
-    } catch (error) {
-        console.error("Erro ao habilitar 2FA:", error);
-        return res.status(500).json({ message: 'Erro interno do servidor '});
+    if (!token2FA || !tempToken) {
+      return res.status(400).json({ message: "Token 2FA ou tempToken ausente." });
     }
+
+    const decoded: any = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET);
+
+    if (!decoded?.id || !decoded?.is2FATemp) {
+      return res.status(401).json({ message: "Token temporário inválido." });
+    }
+
+    const userId = decoded.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user || !user.twoFASecret) {
+      return res.status(400).json({ message: "2FA não está configurado para este usuário." });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFASecret,
+      encoding: "base32",
+      token: token2FA,
+      window: 1,
+    });
+
+    if (!verified) {
+      return res.status(401).json({ message: "Código 2FA inválido." });
+    }
+
+    const finalToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    return res.status(200).json({
+      message: "2FA validado!",
+      token: finalToken,
+    });
+
+  } catch (error) {
+    console.error("Erro ao validar 2FA:", error);
+    return res.status(500).json({ message: "Erro interno do servidor" });
+  }
 };
+
 
 export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) => {
 
