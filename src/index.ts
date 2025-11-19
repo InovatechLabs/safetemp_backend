@@ -14,7 +14,6 @@ import TwoFARouter from './routes/user/2fa/2FARoutes';
 
 dotenv.config({ path: ".env" });
 
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 const app = express();
 const prisma = new PrismaClient();

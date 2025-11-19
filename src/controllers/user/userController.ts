@@ -73,7 +73,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
             if (!token2FA) {
                 
                 const tempToken = jwt.sign({
-                id: user.id }, process.env.JWT_TEMP_SECRET, { expiresIn: '6h'})
+                id: user.id }, process.env.JWT_TEMP_SECRET, { expiresIn: '15m'})
 
             return res.status(206).json({
                 message: 'Código 2FA necessário.',
@@ -81,6 +81,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
                 tempToken,
             });
             }
+
 
             if (!user.twoFASecret) return res.status(400).json({ message: '2FA não configurado corretamente.' });
 

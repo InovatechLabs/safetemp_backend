@@ -50,24 +50,18 @@ export const enable2FA = async (req: AuthenticatedRequest, res: Response) => {
     }
 };
 
-export const verify2FA = async (req: Request, res: Response) => {
+export const verify2FA = async (req: AuthenticatedRequest, res: Response) => {
 
     if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
     if (!process.env.JWT_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
   try {
-    const { token2FA, tempToken } = req.body;
+    const { token2FA } = req.body;
 
-    if (!token2FA || !tempToken) {
-      return res.status(400).json({ message: "Token 2FA ou tempToken ausente." });
+    if (!token2FA ) {
+      return res.status(400).json({ message: "Token 2FA ausente." });
     }
 
-    const decoded: any = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET);
-
-    if (!decoded?.id || !decoded?.is2FATemp) {
-      return res.status(401).json({ message: "Token temporário inválido." });
-    }
-
-    const userId = decoded.id;
+    const userId = req.user?.id;
 
     const user = await prisma.user.findUnique({
       where: { id: userId }
@@ -88,14 +82,13 @@ export const verify2FA = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Código 2FA inválido." });
     }
 
-    const finalToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        is2FAEnabled: true
+      }
     });
-
-    return res.status(200).json({
-      message: "2FA validado!",
-      token: finalToken,
-    });
+    return res.status(200).json({ message: '2FA configurado com sucesso.' });
 
   } catch (error) {
     console.error("Erro ao validar 2FA:", error);
@@ -107,18 +100,16 @@ export const verify2FA = async (req: Request, res: Response) => {
 export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) => {
 
     if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
+    if (!process.env.JWT_SECRET) throw new Error("Variável de ambiente JWT_SECRET não incializada ou não encontrada.");
 
     const { token2FA, tempToken } = req.body;
 
-    const userId = req.user?.id;
-    if (!req.user) return res.status(401).json({ message: 'Usuário não autenticado.' });
-
     try {
-        const decodedTempToken = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET);
+        const decodedTempToken = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET) as { id: number };
         if(!decodedTempToken) return res.status(401).json({ message: 'Token inválido ou expirado.' });
 
         const user = await prisma.user.findUnique({
-            where: { id: userId }
+            where: { id: decodedTempToken.id }
         });
         if (!user || !user.twoFASecret) return res.status(400).json({ message: 'Autenticação dois fatores não configurada para este usuário.' });
 
@@ -130,7 +121,7 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
         });
         if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
 
-        const token = jwt.sign({ id: userId }, process.env.JWT_TEMP_SECRET, { expiresIn: '3h'});
+        const token = jwt.sign({ id: decodedTempToken.id }, process.env.JWT_SECRET, { expiresIn: '3h'});
 
         return res.status(200).json({
             message: 'Login bem-sucedido',

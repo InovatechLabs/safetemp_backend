@@ -9,14 +9,15 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
+
 model Temperatura {
   id        Int      @id @default(autoincrement())
-  chipId    String
+  chipId    String   @map("chipid") 
   value     Float
   timestamp DateTime @default(now())
 }
@@ -28,7 +29,7 @@ model User {
   password          String
   resetToken        String?
   resetTokenExpires DateTime?
-  is2FAEnabled      Boolean? @default(false)
+  is2FAEnabled      Boolean   @default(false)
   twoFASecret       String?
   backupCode        String?
   expoPushToken     String?
@@ -36,8 +37,8 @@ model User {
 }
 
 model Device {
-  id                Int      @id @default(autoincrement())
-  mac_address       String   @unique
+  id          Int    @id @default(autoincrement())
+  mac_address String @unique
 }
 
 model Alerts {
@@ -45,19 +46,21 @@ model Alerts {
   user_id           Int
   temperatura_min   Float?
   temperatura_max   Float?
-  hora_inicio       DateTime?  
-  hora_fim          DateTime?   
-  criado_em         DateTime    @default(now())
-  ativo             Boolean     @default(true)
-  notificacaoAtiva  Boolean     @default(false)
-  user              User        @relation(fields: [user_id], references: [id])
+  hora_inicio       DateTime?
+  hora_fim          DateTime?
+  criado_em         DateTime  @default(now())
+  ativo             Boolean   @default(true)
+  notificacaoAtiva  Boolean   @default(false)
+
+  user              User      @relation(fields: [user_id], references: [id])
 }
 
 model Relatorios {
-  id                Int      @id @default(autoincrement())
-  chip_id           String
-  data              DateTime
-  relatorio         String   @db.NVarChar(MAX)
-  resumo            String   @db.NVarChar(MAX)
-  criado_em         DateTime   @default(now())
+  id        Int      @id @default(autoincrement())
+  chip_id   String
+  data      DateTime
+  relatorio String
+  resumo    String
+
+  criado_em DateTime @default(now())
 }
