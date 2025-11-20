@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import passwordValidator from '../../validators/passwordValidator';
 import { PrismaClient } from '@prisma/client';
+import speakeasy from 'speakeasy';
 
 dotenv.config();
 
@@ -51,7 +52,8 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
 
 export const login = async (req: AuthenticatedRequest, res: Response) => {
 
-    const { email, password } = req.body;
+    const { email, password, token2FA } = req.body;
+    if (!process.env.JWT_TEMP_SECRET) throw new Error('Variável de ambiente JWT_TEMP_SECRET não inicializada.')
 
     try {
 
@@ -67,15 +69,39 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
         if(!validPassword) return res.status(400).json({ message: 'Senha incorreta.'});
 
+        if (user.is2FAEnabled) {
+            if (!token2FA) {
+                
+                const tempToken = jwt.sign({
+                id: user.id }, process.env.JWT_TEMP_SECRET, { expiresIn: '15m'})
+
+            return res.status(206).json({
+                message: 'Código 2FA necessário.',
+                requires2FA: true,
+                tempToken,
+            });
+            }
+
+
+            if (!user.twoFASecret) return res.status(400).json({ message: '2FA não configurado corretamente.' });
+
+            const validToken = speakeasy.totp.verify({
+                secret: user.twoFASecret,
+                encoding: 'base32',
+                token: token2FA,
+                window: 1,
+            });
+            if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
+     
+        }
+
         const token = jwt.sign({ id: user.id}, process.env.JWT_SECRET!, {expiresIn: '1h'});
         return res.status(200).json({ 
-
             success: true,
             token 
         })
    
     } catch (error) {
-
         console.log("Erro ao fazer login:", error)
         res.status(500).json({ message: 'Erro interno do servidor'});
     }
