@@ -119,6 +119,10 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
             token: token2FA,
             window: 1,
         });
+        console.log("Código gerado no backend:", validToken);
+console.log("Código digitado pelo usuário:", token2FA);
+console.log("Timestamp servidor:", Date.now());
+console.log("Timestamp local:", new Date().toISOString());
         if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
 
         const token = jwt.sign({ id: decodedTempToken.id }, process.env.JWT_SECRET, { expiresIn: '3h'});
