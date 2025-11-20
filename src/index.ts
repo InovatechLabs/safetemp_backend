@@ -11,6 +11,7 @@ import alertsRouter from './routes/user/alerts/alertsRoutes';
 import './jobs/alertChecker';
 import './scheduler/reportScheduler';
 import TwoFARouter from './routes/user/2fa/2FARoutes';
+import reportsRouter from './routes/reports/reportsRoutes';
 
 dotenv.config({ path: ".env" });
 
@@ -35,6 +36,7 @@ app.use("/api/2fa", TwoFARouter); // Autenticação dois fatores
 app.use("/api/data", dataRouter);    // Registro de dados 
 app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware 
 app.use("/api/alerts", alertsRouter); // Funcionalidade de alertas
+app.use("/api/reports", reportsRouter); // Rotas para relatórios
 
 
 
