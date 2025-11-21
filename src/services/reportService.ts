@@ -9,6 +9,8 @@ export async function generateReportPDF(report: any) {
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage", 
+            "--disable-gpu",
+            "--no-first-run",
             "--single-process", 
             "--no-zygote",
         ],
@@ -18,7 +20,9 @@ export async function generateReportPDF(report: any) {
         const page = await browser.newPage();
         const html = reportTemplate(report);
 
-        await page.setContent(html, { waitUntil: "networkidle0" });
+        await page.setContent(html, {
+            waitUntil: "domcontentloaded"
+        });
 
         const pdf = await page.pdf({
             format: "A4",
