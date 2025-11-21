@@ -4,7 +4,7 @@
   "description": "Aplicação designada para monitoramento de temperatura em uma estufa",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npx puppeteer browsers install chrome && tsc",
     "postbuild": "cp -r src/firmware dist/",
     "test": "jest",
     "postinstall": "npx prisma generate",
