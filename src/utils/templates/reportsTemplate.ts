@@ -1,4 +1,19 @@
 import { formatIsoToBR } from "../formatters/isoDate";
+import { logoSrc } from "./base64image";
+
+function formatDateBR(dateInput: string | Date) {
+  if (!dateInput) return "—";
+  const date = new Date(dateInput);
+  return date.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
 
 export function reportTemplate(relatorio: any) {
   let text = relatorio.relatorio || "";
@@ -170,7 +185,7 @@ export function reportTemplate(relatorio: any) {
 <body>
 
   <div class="header">
-    <img class="logo" src="https://i.imgur.com/AZ4PlDr.png" alt="Logo SafeTemp" />
+    <img class="logo" src="${logoSrc}" alt="Logo SafeTemp" />
     <h1>Relatório de Temperatura</h1>
     <p style="color: #777; margin-top: 5px;">Sistema de Monitoramento SafeTemp</p>
   </div>
@@ -179,7 +194,7 @@ export function reportTemplate(relatorio: any) {
   <div class="card">
     <div><strong>ID Relatório:</strong> ${relatorio.id}</div>
     <div><strong>Chip ID:</strong> ${relatorio.chip_id}</div>
-    <div><strong>Gerado em:</strong> ${relatorio.criado_em}</div>
+    <div><strong>Gerado em:</strong> ${formatDateBR(relatorio.criado_em)}</div>
     <div><strong>Intervalo:</strong> ${formatIsoToBR(resumo.intervalo) ?? "—"}</div>
   </div>
 
@@ -226,7 +241,7 @@ export function reportTemplate(relatorio: any) {
 
   <div class="footer">
     PDF gerado pelo sistema SafeTemp. <br>
-    Data de geração: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+    Data de geração: ${formatDateBR(new Date())} 
   </div>
 
 </body>
