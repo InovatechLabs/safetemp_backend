@@ -175,4 +175,71 @@ export const verifyBackupCode = async (req: AuthenticatedRequest, res: Response)
     console.error("Erro ao verificar backup code:", err);
     return res.status(500).json({ message: 'Erro ao verificar backup code', err });
   }
+};
+
+export const disable2FA = async (req: AuthenticatedRequest, res: Response) => {
+
+  try {
+
+    const { token2FA } = req.body;
+    const userId = req.user?.id;
+
+    if (!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+    if (!user.twoFASecret) return res.status(400).json({ message: 'Autenticação dois fatores não está ativada.' });
+
+    const validToken = speakeasy.totp.verify({
+      secret: user.twoFASecret,
+      encoding: 'base32',
+      token: token2FA,
+      window: 1,
+    });
+    if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFASecret: null,
+        backupCode: null,
+        is2FAEnabled: false,
+      }
+    });
+    return res.status(200).json({ message: '2FA desativado com sucesso.' });
+
+  } catch (error) {
+    console.error('Erro ao desativar 2FA do usuário:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor' });
+  }
 }
+
+export const getBackupCode = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Não autorizado.' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { 
+        backupCode: true, 
+        is2FAEnabled: true 
+      }
+    });
+
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    if (!user.is2FAEnabled || !user.backupCode) {
+        return res.status(400).json({ message: '2FA não está ativo ou código não gerado.' });
+    }
+
+    return res.status(200).json({ backupCode: user.backupCode });
+
+  } catch (error) {
+    console.error('Erro ao buscar código de backup:', error);
+    return res.status(500).json({ message: 'Erro interno.' });
+  }
+};
