@@ -23,9 +23,7 @@ export const registerTemperature = async ( req: Request, res: Response ) => {
 
         if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
 
-         const nowUtc = new Date();
-        const offset = -3 * 60; // -3 horas em minutos
-        nowUtc.setMinutes(nowUtc.getMinutes() + offset);
+        const nowUtc = new Date();
 
         const tempRegister = await prisma.temperatura.create({
             data: {
