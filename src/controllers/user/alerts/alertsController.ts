@@ -12,11 +12,12 @@ const expo = new Expo();
 
 export const registerAlert = async (req: AuthenticatedRequest, res: Response) => {
 
-    const { temperatura_min, temperatura_max, hora_inicio, hora_fim } = req.body;
+    const { temperatura_min, temperatura_max, hora_inicio, hora_fim, nome, nota } = req.body;
     const timeZone = 'America/Sao_Paulo';
     try {
 
-      if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
+    if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
+    if (!temperatura_min || !temperatura_max) return res.status(401).json({ message: 'O alerta precisa ter pelo menos um parâmetro de temperatura definido para efetivação' });
  
 
    const userId = req.user.id;
@@ -36,6 +37,8 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
                 hora_inicio: utcHoraInicio, 
                 hora_fim: utcHoraFim,
                 ativo: true,
+                nome: nome ? nome : null,
+                nota: nota ? nota : null
             },
         });
 
@@ -179,12 +182,50 @@ export const enableAlert = async (req: AuthenticatedRequest, res: Response) => {
             }
         });
 
-        res.status(200).json({ message: 'Alerta desativado com sucesso.' });
+        res.status(200).json({ message: 'Alerta ativado com sucesso.' });
     } catch (error) {
         console.error("Não foi possível excluir alerta:", error);
         return res.status(500).json({ message: 'Erro interno do servidor' });
     }
 };
+
+export const editAlertName = async (req: AuthenticatedRequest, res: Response) => {
+
+    const id = Number(req.params.id);
+    const { nome } = req.body;
+
+    try {
+
+        const userId = req.user?.id;
+        if (!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+
+        if (!nome || typeof nome !== 'string' || nome.trim().length === 0) {
+            return res.status(400).json({ message: 'O nome do alerta é obrigatório e não pode ser vazio.' });
+        }
+        if (isNaN(id)) {
+            return res.status(400).json({ message: 'ID inválido.' });
+        }
+
+        const result = await prisma.alerts.updateMany({
+            where: {
+                id: id,
+                user_id: userId 
+            },
+            data: {
+                nome: nome
+            }
+        });
+
+        if (result.count === 0) {
+            return res.status(404).json({ message: 'Alerta não encontrado ou você não tem permissão para editá-lo.' });
+        }
+        
+        return res.status(200).json({ message: `Nome atualizado com sucesso para "${nome}".` });
+    } catch (error) {
+        console.error("Erro ao editar nome de alerta:", error);
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+}
 
 export const list = async (req: Request, res: Response) => {
 
