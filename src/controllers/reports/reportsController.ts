@@ -19,8 +19,8 @@ export const listReports = async (req: Request, res: Response) => {
 };
 
 export const listTodayReports = async (req: Request, res: Response) => {
-    const now = new Date();
-    const { startOfDay, endOfDay } = getDayRange(now);
+
+    const { startOfDay, endOfDay } = getDayRange();
 
     try {
         const todayReports = await prisma.relatorios.findMany({
@@ -43,17 +43,17 @@ export const listTodayReports = async (req: Request, res: Response) => {
 export const listReportsByDate = async (req: Request, res: Response) => {
     const { data } = req.query;
 
-    if (!data) {
+    if (!data || typeof data !== 'string') {
         return res.status(400).json({ error: "Data é obrigatória (YYYY-MM-DD)" });
     }
 
-    const date = new Date(data as string);
+    const dateInput = new Date(data);
 
-    if (isNaN(date.getTime())) {
+    if (isNaN(dateInput.getTime())) {
         return res.status(400).json({ error: "Data inválida" });
     }
 
-    const { startOfDay, endOfDay } = getDayRange(date);
+    const { startOfDay, endOfDay } = getDayRange(dateInput);
 
     try {
         const reports = await prisma.relatorios.findMany({
