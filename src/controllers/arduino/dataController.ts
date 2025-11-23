@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { calcStats } from '../../utils/statistics';
+import { Parser } from 'json2csv';
+import { getDayRange } from '../../utils/dateRange';
 
 dotenv.config();
 
@@ -160,4 +162,109 @@ export const getHistory1h = async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ message: 'Erro ao buscar últimos dados' });
   }
+};
+
+export const exportCSV = async (req: Request, res: Response) => {
+    
+    const { data, type = 'temperatura', id } = req.query;
+    const timeOptions: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo' };
+
+    try {
+        let dadosFormatados: any[] = [];
+        let fields: string[] = [];
+        let fileName = "";
+
+      if (type === 'relatorios') {
+
+        if (!id) {
+          return res.status(400).json({ error: "ID do relatório é obrigatório para este tipo de exportação." });
+        }
+
+        const report = await prisma.relatorios.findUnique({
+          where: { id: Number(id) }
+        });
+
+        if (!report) return res.status(404).json({ message: 'Relatório não encontrado.' });
+
+        let resumoObj;
+        try {
+          resumoObj = JSON.parse(report.resumo);
+        } catch (e) {
+          resumoObj = {};
+        }
+
+        dadosFormatados = [{
+          ID: report.id,
+          Data: report.criado_em.toLocaleDateString('pt-BR', timeOptions),
+          'Intervalo': (() => {
+            if (!resumoObj.intervalo) return '-';
+
+            const partes = resumoObj.intervalo.split(' → ');
+
+            if (partes.length === 2) {
+              const inicio = new Date(partes[0]);
+              const fim = new Date(partes[1]);
+
+              const horaInicio = inicio.toLocaleTimeString('pt-BR', { ...timeOptions, hour: '2-digit', minute: '2-digit' });
+              const horaFim = fim.toLocaleTimeString('pt-BR', { ...timeOptions, hour: '2-digit', minute: '2-digit' });
+
+              return `${horaInicio} até ${horaFim}`;
+            }
+            return resumoObj.intervalo;
+          })(),
+          'Média (°C)': resumoObj.media !== undefined ? Number(resumoObj.media).toFixed(2).replace('.', ',') : '-',
+          'Mínima (°C)': resumoObj.min !== undefined ? Number(resumoObj.min).toFixed(2).replace('.', ',') : '-',
+          'Máxima (°C)': resumoObj.max !== undefined ? Number(resumoObj.max).toFixed(2).replace('.', ',') : '-',
+          'Desvio Padrão (%)': resumoObj.std !== undefined ? Number(resumoObj.std).toFixed(2).replace('.', ',') : '-',
+          'Variância (%)': resumoObj.variancia !== undefined ? Number(resumoObj.variancia).toFixed(2).replace('.', ',') : '-',
+          'CVOutliers (%)': resumoObj.cvoutlier !== undefined ? Number(resumoObj.cvoutlier).toFixed(2).replace('.', ',') : '-',
+          'CVNoOutliers (%)': resumoObj.cvnooutlier !== undefined ? Number(resumoObj.cvnooutlier).toFixed(2).replace('.', ',') : '-',
+          'Total de Outliers': resumoObj.totalOutliers !== undefined ? Number(resumoObj.totalOutliers).toFixed(2).replace('.', ',') : '-',
+          'Total de Registros': resumoObj.registros ?? '-'
+        }];
+
+        fields = ['ID', 'Data', 'Intervalo', 'Média (°C)', 'Mínima (°C)', 'Máxima (°C)', 'Desvio Padrão (%)', 'Variância (%)', 'CVOutliers (%)', 'CVNoOutliers (%)', 'Total de Outliers', 'Total de Registros'];
+        fileName = `resumo_relatorio_${id}.csv`;
+
+      } 
+        else {
+            
+            if (!data || typeof data !== 'string') {
+                return res.status(400).json({ error: "Data é obrigatória para exportação de temperatura." });
+            }
+
+            const dateInput = new Date(data);
+            if (isNaN(dateInput.getTime())) return res.status(400).json({ error: "Data inválida" });
+            
+            const { startOfDay, endOfDay } = getDayRange(dateInput);
+
+            const records = await prisma.temperatura.findMany({
+                where: { timestamp: { gte: startOfDay, lt: endOfDay } },
+                orderBy: { timestamp: 'asc' }
+            });
+
+            if (records.length === 0) return res.status(404).json({ message: 'Sem dados brutos para esta data.' });
+
+            dadosFormatados = records.map(reg => ({
+                ID: reg.id,
+                Data: reg.timestamp.toLocaleDateString('pt-BR', timeOptions),
+                Hora: reg.timestamp.toLocaleTimeString('pt-BR', timeOptions),
+                Temperatura: reg.value.toFixed(2).replace('.', ','), 
+            }));
+
+            fields = ['ID', 'Data', 'Hora', 'Temperatura'];
+            fileName = `dados_brutos_${data}.csv`;
+        }
+
+        const json2csvParser = new Parser({ fields, delimiter: ';', withBOM: true });
+        const csv = json2csvParser.parse(dadosFormatados);
+
+        res.header('Content-Type', 'text/csv');
+        res.attachment(fileName);
+        return res.send(csv);
+
+    } catch (error) {
+        console.error("Erro na exportação CSV:", error);
+        return res.status(500).json({ message: 'Erro interno.' });
+    }
 }
