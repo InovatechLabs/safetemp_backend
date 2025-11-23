@@ -40,8 +40,9 @@ export const enable2FA = async (req: AuthenticatedRequest, res: Response) => {
         });
 
         return res.status(200).json({
-            message: '2FA ativado com sucesso.',
-            otpauthUrl: secret.otpauth_url,
+            message: 'Segredo gerado com sucesso.',
+            otpauth_url: secret.otpauth_url,
+            secret: secret.base32,
             backupCode
         });
     
