@@ -237,7 +237,7 @@ export const getBackupCode = async (req: AuthenticatedRequest, res: Response) =>
         return res.status(400).json({ message: '2FA não está ativo ou código não gerado.' });
     }
 
-    return res.status(200).json({ backupCode: user.backupCode });
+    return res.status(200).json({ backupCode: user.backupCode, is2FAEnabled: user.is2FAEnabled });
 
   } catch (error) {
     console.error('Erro ao buscar código de backup:', error);
