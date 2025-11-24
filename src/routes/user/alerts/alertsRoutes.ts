@@ -21,4 +21,8 @@ alertsRouter.put('/disable/:id', authenticate, disableAlert);
 alertsRouter.put('/enable/:id', authenticate, enableAlert);
 alertsRouter.get('/listall', list);
 
+alertsRouter.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'API is operational' });
+});
+
 export default alertsRouter;
