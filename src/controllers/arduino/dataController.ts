@@ -138,10 +138,11 @@ export const getTemperatures6h = async (req: Request, res: Response) => {
 export const getHistory1h = async (req: Request, res: Response) => {
     
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - (1 + 3)  * 60 * 60 * 1000);
+    const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000);
 
     try {
-        const records = await prisma.temperatura.findMany({
+      
+      const records = await prisma.temperatura.findMany({
       where: {
         timestamp: {
           gte: oneHourAgo,
@@ -150,6 +151,10 @@ export const getHistory1h = async (req: Request, res: Response) => {
       },
       orderBy: { timestamp: 'asc' },
     });
+
+    if (!records || records.length === 0) {
+        return res.json({ records: [], statistics: null });
+    }
 
     const sv = records.map(r => r.value);
     const statistics = calcStats(sv);
