@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import { Expo } from 'expo-server-sdk';
-import { fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime, format } from 'date-fns-tz';
 
 dotenv.config();
 
@@ -14,39 +14,55 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
 
     const { temperatura_min, temperatura_max, hora_inicio, hora_fim, nome, nota } = req.body;
     const timeZone = 'America/Sao_Paulo';
+
     try {
-
-    if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
-    if (!temperatura_min || !temperatura_max) return res.status(401).json({ message: 'O alerta precisa ter pelo menos um parâmetro de temperatura definido para efetivação' });
+        if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
  
+        if (temperatura_min === undefined && temperatura_max === undefined) {
+             return res.status(400).json({ message: 'Defina ao menos uma temperatura limite.' });
+        }
 
-   const userId = req.user.id;
+        const userId = req.user.id;
+        let utcHoraInicio = null;
+        let utcHoraFim = null;
 
-   const utcHoraInicio = hora_inicio 
-            ? fromZonedTime(hora_inicio, timeZone) 
-            : null;
-        
-        const utcHoraFim = hora_fim 
-            ? fromZonedTime(hora_fim, timeZone) 
-            : null;
+        const now = new Date();
+        const brazilTime = toZonedTime(now, timeZone); 
+        const brazilDateString = format(brazilTime, 'yyyy-MM-dd');
+
+        if (hora_inicio) {
+
+            const timePart = hora_inicio.includes('T') ? hora_inicio.split('T')[1].substring(0, 5) : hora_inicio;
+            const combinedString = `${brazilDateString} ${timePart}`;
+
+            utcHoraInicio = fromZonedTime(combinedString, timeZone);
+        }
+
+        if (hora_fim) {
+            const timePart = hora_fim.includes('T') ? hora_fim.split('T')[1].substring(0, 5) : hora_fim;
+            const combinedString = `${brazilDateString} ${timePart}`;
+            utcHoraFim = fromZonedTime(combinedString, timeZone);
+        }
+
         const alert = await prisma.alerts.create({
             data: {
                 user_id: userId,
-                temperatura_min,
-                temperatura_max,
-                hora_inicio: utcHoraInicio, 
+                temperatura_min: temperatura_min ? parseFloat(temperatura_min) : null,
+                temperatura_max: temperatura_max ? parseFloat(temperatura_max) : null,
+                hora_inicio: utcHoraInicio,
                 hora_fim: utcHoraFim,
                 ativo: true,
-                nome: nome ? nome : null,
-                nota: nota ? nota : null
+                nome: nome || null,
+                nota: nota || null
             },
         });
 
-        res.json(alert);
+        return res.status(201).json(alert);
+
     } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erro ao criar alerta" });
-  }
+        console.error("Erro ao criar alerta:", err);
+        return res.status(500).json({ message: "Erro interno ao cadastrar alerta." });
+    }
 };
 
 export const saveUserToken = async (req: AuthenticatedRequest, res: Response) => {
