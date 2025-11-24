@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     deleteAlert,
     disableAlert,
+    editAlertName,
     enableAlert,
     list,
     listUserAlerts,
@@ -17,8 +18,9 @@ alertsRouter.post('/save-token', authenticate, saveUserToken);
 alertsRouter.get('/list', authenticate, listUserAlerts);
 
 alertsRouter.delete('/delete/:id', authenticate, deleteAlert);
-alertsRouter.put('/disable/:id', authenticate, disableAlert);
-alertsRouter.put('/enable/:id', authenticate, enableAlert);
+alertsRouter.patch('/disable/:id', authenticate, disableAlert);
+alertsRouter.patch('/enable/:id', authenticate, enableAlert);
+alertsRouter.patch('/editname/:id', authenticate, editAlertName);
 alertsRouter.get('/listall', list);
 
 alertsRouter.get('/health', (req, res) => {

@@ -51,6 +51,8 @@ model Alerts {
   criado_em         DateTime  @default(now())
   ativo             Boolean   @default(true)
   notificacaoAtiva  Boolean   @default(false)
+  nome              String?
+  nota              String?
 
   user              User      @relation(fields: [user_id], references: [id])
 }

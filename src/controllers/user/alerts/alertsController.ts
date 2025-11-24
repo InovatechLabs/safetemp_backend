@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import { Expo } from 'expo-server-sdk';
-import { fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime, format } from 'date-fns-tz';
 
 dotenv.config();
 
@@ -12,38 +12,57 @@ const expo = new Expo();
 
 export const registerAlert = async (req: AuthenticatedRequest, res: Response) => {
 
-    const { temperatura_min, temperatura_max, hora_inicio, hora_fim } = req.body;
+    const { temperatura_min, temperatura_max, hora_inicio, hora_fim, nome, nota } = req.body;
     const timeZone = 'America/Sao_Paulo';
+
     try {
-
-      if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
+        if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
  
+        if (temperatura_min === undefined && temperatura_max === undefined) {
+             return res.status(400).json({ message: 'Defina ao menos uma temperatura limite.' });
+        }
 
-   const userId = req.user.id;
+        const userId = req.user.id;
+        let utcHoraInicio = null;
+        let utcHoraFim = null;
 
-   const utcHoraInicio = hora_inicio 
-            ? fromZonedTime(hora_inicio, timeZone) 
-            : null;
-        
-        const utcHoraFim = hora_fim 
-            ? fromZonedTime(hora_fim, timeZone) 
-            : null;
+        const now = new Date();
+        const brazilTime = toZonedTime(now, timeZone); 
+        const brazilDateString = format(brazilTime, 'yyyy-MM-dd');
+
+        if (hora_inicio) {
+
+            const timePart = hora_inicio.includes('T') ? hora_inicio.split('T')[1].substring(0, 5) : hora_inicio;
+            const combinedString = `${brazilDateString} ${timePart}`;
+
+            utcHoraInicio = fromZonedTime(combinedString, timeZone);
+        }
+
+        if (hora_fim) {
+            const timePart = hora_fim.includes('T') ? hora_fim.split('T')[1].substring(0, 5) : hora_fim;
+            const combinedString = `${brazilDateString} ${timePart}`;
+            utcHoraFim = fromZonedTime(combinedString, timeZone);
+        }
+
         const alert = await prisma.alerts.create({
             data: {
                 user_id: userId,
-                temperatura_min,
-                temperatura_max,
-                hora_inicio: utcHoraInicio, 
+                temperatura_min: temperatura_min ? parseFloat(temperatura_min) : null,
+                temperatura_max: temperatura_max ? parseFloat(temperatura_max) : null,
+                hora_inicio: utcHoraInicio,
                 hora_fim: utcHoraFim,
                 ativo: true,
+                nome: nome || null,
+                nota: nota || null
             },
         });
 
-        res.json(alert);
+        return res.status(201).json(alert);
+
     } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erro ao criar alerta" });
-  }
+        console.error("Erro ao criar alerta:", err);
+        return res.status(500).json({ message: "Erro interno ao cadastrar alerta." });
+    }
 };
 
 export const saveUserToken = async (req: AuthenticatedRequest, res: Response) => {
@@ -179,12 +198,50 @@ export const enableAlert = async (req: AuthenticatedRequest, res: Response) => {
             }
         });
 
-        res.status(200).json({ message: 'Alerta desativado com sucesso.' });
+        res.status(200).json({ message: 'Alerta ativado com sucesso.' });
     } catch (error) {
         console.error("Não foi possível excluir alerta:", error);
         return res.status(500).json({ message: 'Erro interno do servidor' });
     }
 };
+
+export const editAlertName = async (req: AuthenticatedRequest, res: Response) => {
+
+    const id = Number(req.params.id);
+    const { nome } = req.body;
+
+    try {
+
+        const userId = req.user?.id;
+        if (!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
+
+        if (!nome || typeof nome !== 'string' || nome.trim().length === 0) {
+            return res.status(400).json({ message: 'O nome do alerta é obrigatório e não pode ser vazio.' });
+        }
+        if (isNaN(id)) {
+            return res.status(400).json({ message: 'ID inválido.' });
+        }
+
+        const result = await prisma.alerts.updateMany({
+            where: {
+                id: id,
+                user_id: userId 
+            },
+            data: {
+                nome: nome
+            }
+        });
+
+        if (result.count === 0) {
+            return res.status(404).json({ message: 'Alerta não encontrado ou você não tem permissão para editá-lo.' });
+        }
+        
+        return res.status(200).json({ message: `Nome atualizado com sucesso para "${nome}".` });
+    } catch (error) {
+        console.error("Erro ao editar nome de alerta:", error);
+        return res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+}
 
 export const list = async (req: Request, res: Response) => {
 
