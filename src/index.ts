@@ -12,6 +12,7 @@ import './jobs/alertChecker';
 import './scheduler/reportScheduler';
 import TwoFARouter from './routes/user/2fa/2FARoutes';
 import reportsRouter from './routes/reports/reportsRoutes';
+import { startWatchdog } from './services/watchdog/watchdogService';
 
 dotenv.config({ path: ".env" });
 
@@ -52,6 +53,7 @@ async function startServer() {
 
         app.listen(PORT, "0.0.0.0", () => {
             console.log(`🚀 Servidor rodando em ${process.env.BACKEND_URL}`);
+            startWatchdog();
         });
     } catch (error) {
         console.error(`❌ Erro ao iniciar servidor: `, error);
