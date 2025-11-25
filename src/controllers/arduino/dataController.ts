@@ -270,4 +270,37 @@ export const exportCSV = async (req: Request, res: Response) => {
         console.error("Erro na exportação CSV:", error);
         return res.status(500).json({ message: 'Erro interno.' });
     }
-}
+};
+
+
+export const batchRegisterTemperature = async (req: Request, res: Response) => {
+    
+    const { chipId, records } = req.body; 
+
+    if (!chipId || !Array.isArray(records) || records.length === 0) {
+        return res.status(400).json({ message: 'Formato inválido ou lista vazia.' });
+    }
+
+    try {
+        const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
+        if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
+
+        const dataToInsert = records.map((rec: any) => ({
+            chipId: chipId,          
+            value: Number(rec.value), 
+            timestamp: new Date(rec.timestamp) 
+        }));
+
+        const result = await prisma.temperatura.createMany({
+            data: dataToInsert,
+            skipDuplicates: true 
+        });
+
+        console.log(`[BATCH] Recebidos ${records.length}, Salvos ${result.count}`);
+        return res.status(201).json({ message: `Sincronização concluída. ${result.count} registros salvos.` });
+
+    } catch (error) {
+        console.error('Erro no batch upload:', error);
+        return res.status(500).json({ message: 'Erro interno ao salvar lote.' });
+    }
+};
