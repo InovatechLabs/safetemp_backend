@@ -34,11 +34,13 @@ model User {
   backupCode        String?
   expoPushToken     String?
   alerts            Alerts[]
+  experimentos Experimento[]
 }
 
 model Device {
   id          Int    @id @default(autoincrement())
   mac_address String @unique
+  experimentos Experimento[]
 }
 
 model Alerts {
@@ -65,4 +67,19 @@ model Relatorios {
   resumo    String
 
   criado_em DateTime @default(now())
+}
+
+model Experimento {
+  id             Int       @id @default(autoincrement())
+  nome           String
+  objetivo       String?   @db.Text
+  temp_min_ideal Float
+  temp_max_ideal Float
+  data_inicio    DateTime  @default(now())
+  data_fim       DateTime
+  ativo          Boolean   @default(true)
+  responsavel    User      @relation(fields: [userId], references: [id])
+  userId         Int
+  dispositivo    Device    @relation(fields: [deviceId], references: [id])
+  deviceId       Int
 }
