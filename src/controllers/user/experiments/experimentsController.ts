@@ -71,7 +71,14 @@ export const ExperimentoController = {
           dispositivo: { mac_address },
           ativo: true 
         },
-        include: { responsavel: true }
+        include: {
+            responsavel: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            }
+        }
       });
       return res.json(ativo);
     } catch (error) {
