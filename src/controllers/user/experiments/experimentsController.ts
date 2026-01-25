@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
+import { generateExperimentReport } from '../../../services/experiments/experimentReport';
 
 const prisma = new PrismaClient();
 
@@ -50,34 +51,90 @@ export const ExperimentoController = {
 
 
   async finalizar(req: AuthenticatedRequest, res: Response) {
+  try {
     const { id } = req.params;
-
-    if(!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
-    const userId = req.user?.id; 
-
-    const numberedId = Number(id);
-      if (isNaN(numberedId)) {
-      return res.status(400).json({ message: 'ID de experimento inválido.' });
-    }
+    const userId = req.user?.id;
 
     const experiment = await prisma.experimento.findFirst({
-      where: { 
-      id: numberedId,
-      userId: userId,
-      ativo: true
+      where: { id: Number(id), userId: userId, ativo: true },
+      include: {
+        dispositivo: true
       }
-    })
-    if (!experiment) return res.status(404).json({ message: 'Experimento não encontrado' });
+    });
 
-  
+    if (!experiment) return res.status(404).json({ message: 'Experimento não encontrado.' });
+
+
+    const records = await prisma.temperatura.findMany({
+      where: {
+        chipId: experiment.dispositivo.mac_address,
+        timestamp: {
+          gte: experiment.data_inicio,
+          lte: new Date()
+        }
+      },
+      orderBy: { timestamp: 'asc' }
+    });
+
+    const report = await generateExperimentReport(experiment, records);
+
     await prisma.experimento.update({
-        where: { id: experiment.id },
-        data: { ativo: false }
-      });
-      return res.json({ message: 'Experimento finalizado com sucesso.' });
-  },
+      where: { id: experiment.id },
+      data: { 
+        ativo: false, 
+        data_fim: new Date(),
+        relatorio: report 
+      }
+    });
 
-  async buscarAtivoPorDevice(req: Request, res: Response) {
+    return res.json({ 
+      message: 'Experimento concluído e relatório gerado!',
+      relatorio: report 
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Erro ao processar laudo científico.' });
+  }
+},
+
+async listarPublicos(req: Request, res: Response) {
+  try {
+    const experimentos = await prisma.experimento.findMany({
+      where: {
+        ativo: false 
+      },
+      select: {
+        id: true,
+        nome: true,
+        objetivo: true,
+        data_inicio: true,
+        data_fim: true,
+        relatorio: true,
+        temp_min_ideal: true,
+        temp_max_ideal: true,
+        responsavel: {
+          select: {
+            name: true
+          }
+        },
+        dispositivo: {
+          select: {
+            mac_address: true
+          }
+        }
+      },
+      orderBy: { data_fim: 'desc' }
+    });
+
+    return res.json(experimentos);
+  } catch (error) {
+    console.error("Erro ao buscar repositório:", error);
+    return res.status(500).json({ message: 'Erro ao carregar repositório.' });
+  }
+},
+
+async buscarAtivoPorDevice(req: Request, res: Response) {
     const { mac_address } = req.params;
     try {
       const ativo = await prisma.experimento.findFirst({

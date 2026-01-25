@@ -82,4 +82,5 @@ model Experimento {
   userId         Int
   dispositivo    Device    @relation(fields: [deviceId], references: [id])
   deviceId       Int
+  relatorio      String?   @db.Text
 }
