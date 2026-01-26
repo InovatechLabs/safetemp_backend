@@ -8,6 +8,8 @@ experimentsRouter.post('/start', authenticate, ExperimentoController.iniciar);
 experimentsRouter.patch('/end/:id', authenticate, ExperimentoController.finalizar);
 experimentsRouter.get('/active/:mac_address', ExperimentoController.buscarAtivoPorDevice);
 experimentsRouter.get('/list', ExperimentoController.listarPublicos);
+experimentsRouter.get('/per-day', ExperimentoController.buscarPorData);
+experimentsRouter.get('/today', ExperimentoController.listarExperimentosDeHoje);
 
 export default experimentsRouter;
 

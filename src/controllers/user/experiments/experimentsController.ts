@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import { generateExperimentReport } from '../../../services/experiments/experimentReport';
+import { getDayRange } from '../../../utils/dateRange';
 
 const prisma = new PrismaClient();
 
@@ -132,6 +133,60 @@ async listarPublicos(req: Request, res: Response) {
     console.error("Erro ao buscar repositório:", error);
     return res.status(500).json({ message: 'Erro ao carregar repositório.' });
   }
+},
+
+async buscarPorData (req: Request, res: Response) {
+
+  const { data } = req.query;
+
+  if (!data || typeof data !== 'string') {
+    return res.status(400).json({ error: "Data é obrigatória (YYYY-MM-DD)" });
+  }
+  const dateInput = new Date(data);
+
+  if (isNaN(dateInput.getTime())) {
+    return res.status(400).json({ error: "Data inválida" });
+  }
+
+  const { startOfDay, endOfDay } = getDayRange(dateInput);
+
+  try {
+    const experiments = await prisma.experimento.findMany({
+      where: {
+        data_inicio: {
+          gte: startOfDay,
+          lt: endOfDay
+        }
+      }
+    });
+    if (!experiments) return res.status(404).json({ message: 'Não foram encontrados experimentos na data solicitada.' });
+
+    return res.json(experiments);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Erro interno do servidor" });
+  }
+},
+
+async listarExperimentosDeHoje (req: Request, res: Response) {
+
+  const { startOfDay, endOfDay } = getDayRange();
+  try {
+    const todayExperiments = await prisma.experimento.findMany({
+      where: {
+        data_inicio: {
+          gte: startOfDay,
+          lt: endOfDay
+        }
+      },
+    });
+    if (!todayExperiments) return res.status(404).json({ message: 'Não foram encontrado experimentos na data de hoje.' });
+     return res.json(todayExperiments);
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+ 
 },
 
 async buscarAtivoPorDevice(req: Request, res: Response) {
