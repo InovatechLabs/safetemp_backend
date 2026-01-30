@@ -13,6 +13,7 @@ import './scheduler/reportScheduler';
 import TwoFARouter from './routes/user/2fa/2FARoutes';
 import reportsRouter from './routes/reports/reportsRoutes';
 import experimentsRouter from './routes/user/experiments/experimentsRoutes';
+import comparisonRouter from './routes/comparison/comparisonRoutes';
 import { startWatchdog } from './services/watchdog/watchdogService';
 
 dotenv.config({ path: ".env" });
@@ -40,6 +41,7 @@ app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware
 app.use("/api/alerts", alertsRouter); // Funcionalidade de alertas
 app.use("/api/reports", reportsRouter); // Rotas para relatórios
 app.use("/api/experiments", experimentsRouter); // Rotas para experimentos
+app.use("/api/comparison", comparisonRouter); // Comparação de dados
 
 
 
