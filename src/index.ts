@@ -15,6 +15,8 @@ import reportsRouter from './routes/reports/reportsRoutes';
 import experimentsRouter from './routes/user/experiments/experimentsRoutes';
 import comparisonRouter from './routes/comparison/comparisonRoutes';
 import { startWatchdog } from './services/watchdog/watchdogService';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 
 dotenv.config({ path: ".env" });
 
@@ -43,7 +45,7 @@ app.use("/api/reports", reportsRouter); // Rotas para relatórios
 app.use("/api/experiments", experimentsRouter); // Rotas para experimentos
 app.use("/api/comparison", comparisonRouter); // Comparação de dados
 
-
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec)); // Documentação da API
 
 
 async function startServer() {
