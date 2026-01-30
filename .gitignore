@@ -34,5 +34,6 @@ google-services.json
 # Android Profiling
 *.hprof
 
+mock.js
 /src/generated/prisma
 node_modules/

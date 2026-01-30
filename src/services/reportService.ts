@@ -13,6 +13,8 @@ export async function generateReportPDF(report: any) {
             "--no-first-run",
             "--single-process", 
             "--no-zygote",
+            "--disable-accelerated-2d-canvas",
+            "--disable-extensions",
         ],
     });
 

@@ -26,4 +26,15 @@ export function getDayRange(customDate?: Date) {
     const endOfDay = new Date(startOfDay.getTime() + (24 * 60 * 60 * 1000));
 
     return { startOfDay, endOfDay };
+};
+
+export function buildDayRange(dateStr: string) {
+  const start = new Date(`${dateStr}T00:00:00.000Z`);
+  const end   = new Date(`${dateStr}T23:59:59.999Z`);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new Error("Invalid date format");
+  }
+
+  return { start, end };
 }
