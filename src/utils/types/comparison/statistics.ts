@@ -48,4 +48,11 @@ export interface BalanceAnalysis {
   reliability: "boa" | "limitada" | "baixa";
 }
 
+export interface ComparisonSummary {
+  headline: string;
+  confidence: "alta" | "média" | "baixa";
+  highlights: string[];
+  tags: string[];
+}
+
 

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { calcStats } from "../../utils/statistics";
-import { compareStats, sampleBalance } from "../../utils/functions/comparison";
+import { buildComparisonSummary, compareStats, sampleBalance } from "../../utils/functions/comparison";
 import { Request, Response } from 'express';
 import { TemperatureStats } from "../../utils/types/comparison/statistics";
 import { buildDayRange } from "../../utils/dateRange";
@@ -48,6 +48,7 @@ export const compareTemperatureRanges = async (req: Request, res: Response) => {
 
     const balanceAnalysis = sampleBalance(valuesA.length, valuesB.length);
     const comparison = compareStats(statsA, statsB);
+    const summary = buildComparisonSummary(comparison, balanceAnalysis);
 
     res.json({
       rangeA: {
@@ -62,6 +63,7 @@ export const compareTemperatureRanges = async (req: Request, res: Response) => {
       },
       comparison,
       balanceAnalysis,
+      summary,
     });
 
   } catch (err) {

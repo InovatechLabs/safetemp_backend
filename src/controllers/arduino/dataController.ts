@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { calcStats } from '../../utils/statistics';
 import { Parser } from 'json2csv';
 import { getDayRange } from '../../utils/dateRange';
+import { aggregateByGranularity } from '../../utils/analytics/aggregation';
 
 dotenv.config();
 
@@ -59,11 +60,11 @@ export const getLastRecord = async (req: Request, res: Response) => {
 
 export const getTemperatures = async (req: Request, res: Response) => {
 
-    const { date, start, end } = req.query;
+  const { date, start, end, granularity } = req.query;
 
-     if (!date && !start && !end) {
-       return res.status(400).json({ message: "Por favor, informe os parâmetros para consulta." });
-     }
+  if (!date && !start && !end) {
+    return res.status(400).json({ message: "Por favor, informe os parâmetros para consulta." });
+  }
 
   let startDate: Date;
   let endDate: Date;
@@ -77,6 +78,20 @@ export const getTemperatures = async (req: Request, res: Response) => {
   } else {
     return res.status(400).json({ message: "Informe tanto 'date' quanto 'start' e 'end' corretamente." });
   }
+
+    const GRANULARITY_MAP: Record<string, number> = {
+    "1m": 1,
+    "5m": 5,
+    "10m": 10,
+    "15m": 15,
+    "30m": 30,
+    "1h": 60,
+  };
+
+  const granularityMinutes =
+    granularity && GRANULARITY_MAP[granularity as string]
+      ? GRANULARITY_MAP[granularity as string]
+      : null;
 
   try {
     const records = await prisma.temperatura.findMany({
@@ -93,10 +108,28 @@ export const getTemperatures = async (req: Request, res: Response) => {
       return res.status(200).json({ message: "Nenhum dado encontrado." });
     }
 
-    const sv = records.map((r) => r.value);
-    const statistics = calcStats(sv);
+   let finalRecords: any[] = records;
 
-    res.json({ records, statistics });
+    if (granularityMinutes) {
+      finalRecords = aggregateByGranularity(
+        records.map((r) => ({
+          value: r.value,
+          timestamp: r.timestamp,
+        })),
+        granularityMinutes
+      );
+    }
+
+    const values = finalRecords.map((r) => r.value);
+    const statistics = calcStats(values);
+
+    res.json({
+      records: finalRecords,
+      statistics,
+      granularity: granularityMinutes
+        ? `${granularityMinutes}m`
+        : "raw",
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Erro interno do servidor." });

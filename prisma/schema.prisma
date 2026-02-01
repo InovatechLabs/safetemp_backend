@@ -34,6 +34,7 @@ model User {
   backupCode        String?
   expoPushToken     String?
   alerts            Alerts[]
+  notifications     Notification[]
   experimentos Experimento[]
 }
 
@@ -55,6 +56,7 @@ model Alerts {
   notificacaoAtiva  Boolean   @default(false)
   nome              String?
   nota              String?
+  notifications     Notification[]
 
   user              User      @relation(fields: [user_id], references: [id])
 }
@@ -83,4 +85,19 @@ model Experimento {
   dispositivo    Device    @relation(fields: [deviceId], references: [id])
   deviceId       Int
   relatorio      String?   @db.Text
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  alert_id  Int?     
+  title     String   
+  content   String   
+  sent_at   DateTime @default(now())
+  read      Boolean  @default(false) 
+
+  user      User     @relation(fields: [user_id], references: [id])
+  alert     Alerts?  @relation(fields: [alert_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id]) // Index para buscas rápidas de histórico por usuário
 }
