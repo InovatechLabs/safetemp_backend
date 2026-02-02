@@ -66,17 +66,19 @@ export const getTemperatures = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Por favor, informe os parâmetros para consulta." });
   }
 
-  let startDate: Date;
+let startDate: Date;
   let endDate: Date;
 
   if (start && end) {
     startDate = new Date(start as string);
     endDate = new Date(end as string);
   } else if (date) {
-    startDate = new Date(`${date}T00:00:00.000Z`);
-    endDate = new Date(`${date}T23:59:59.999Z`);
+    startDate = new Date(`${date}T03:00:00.000Z`);
+    const nextDay = new Date(startDate);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    endDate = new Date(startDate.getTime() + (24 * 60 * 60 * 1000) - 1);
   } else {
-    return res.status(400).json({ message: "Informe tanto 'date' quanto 'start' e 'end' corretamente." });
+    return res.status(400).json({ message: "Parâmetros insuficientes." });
   }
 
     const GRANULARITY_MAP: Record<string, number> = {
