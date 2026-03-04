@@ -18,6 +18,7 @@ import notificationsRouter from './routes/user/notifications/notificationsRoutes
 import { startWatchdog } from './services/watchdog/watchdogService';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
+import { authenticate } from './middlewares/auth';
 
 dotenv.config({ path: ".env" });
 
@@ -27,7 +28,21 @@ const prisma = new PrismaClient();
 
 // ===================== MIDDLEWARES =====================
 app.use(cors({
-    origin: "*",
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'http://localhost:5173', 
+            'http://127.0.0.1:5173',
+            `${process.env.FRONTEND_URL}` as string,
+        ];
+
+        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Não permitido por CORS'));
+        }
+    },
     credentials: true
 }));
 

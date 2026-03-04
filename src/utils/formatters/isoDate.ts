@@ -1,20 +1,28 @@
-export function formatIsoToBR(interval: string) {
-  if (!interval || !interval.includes("→")) return "—";
+export function formatIsoToBR(interval: any) {
 
-  const [startIso, endIso] = interval.split("→").map(s => s.trim());
+  if (!interval) return "—";
+
+  const dateStr = interval instanceof Date ? interval.toISOString() : String(interval);
 
   const formatOne = (iso: string) => {
     const date = new Date(iso);
 
-    const day = date.getUTCDate().toString().padStart(2, "0");
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-    const year = date.getUTCFullYear();
+    if (isNaN(date.getTime())) return "Data Inválida";
 
-    const hours = date.getUTCHours().toString().padStart(2, "0");
-    const minutes = date.getUTCMinutes().toString().padStart(2, "0");
-
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return date.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).replace(',', '');
   };
 
-  return `${formatOne(startIso)} → ${formatOne(endIso)}`;
-};
+  if (dateStr.includes("→")) {
+    const [startIso, endIso] = dateStr.split("→").map(s => s.trim());
+    return `${formatOne(startIso)} → ${formatOne(endIso)}`;
+  }
+
+  return formatOne(dateStr);
+}

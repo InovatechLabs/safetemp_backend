@@ -17,233 +17,226 @@ function formatDateBR(dateInput: string | Date) {
 
 export function reportTemplate(relatorio: any) {
   let text = relatorio.relatorio || "";
-  let resumo = relatorio.resumo;
+  let resumo = typeof relatorio.resumo === 'string' ? JSON.parse(relatorio.resumo) : (relatorio.resumo || {});
 
-  if (typeof resumo === 'string') {
-    try {
-        resumo = JSON.parse(resumo);
-    } catch (e) {
-        console.error("Erro ao parsear string:", e);
-        resumo = {};
-    }
-  }
-  resumo = resumo || {};
-  // 1. Normaliza as quebras de linha literais (\\n) para caracteres reais (\n)
-  
-  text = text.replace(/\\n/g, "\n");
+  // Processamento de texto (Markdown para HTML)
+  text = text.replace(/\\n/g, "\n")
+             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+             .replace(/^\s*\*\s+/gm, "• ")
+             .replace(/\n{2,}/g, "</p><p>")
+             .replace(/\n/g, "<br>");
 
-  // 2. Sanitiza texto para não quebrar HTML 
-  text = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // 3. Converte listas (Markdown simples: * Item)
-  // O 'gm' é importante: global + multiline (para o ^ pegar inicio da linha)
-  text = text.replace(/^\s*\*\s+/gm, "• ");
-
-  // 4. Converte parágrafos duplos (\n\n viram novos parágrafos)
-  text = text.replace(/\n{2,}/g, "</p><p class='mb-4'>");
-
-  // 5. Converte quebras de linha restantes (\n viram <br>)
-  text = text.replace(/\n/g, "<br>");
-
-  // 6. Envolve tudo na tag inicial
-  text = `<p>${text}</p>`;
-
-  return `
+return `
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
     body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      padding: 40px;
-      color: #333;
-      line-height: 1.6;
-      font-size: 14px;
-      -webkit-print-color-adjust: exact; /* Garante cores ao imprimir/gerar PDF */
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-      border-bottom: 2px solid #f0f0f0;
-      padding-bottom: 20px;
-    }
-
-    .logo {
-      width: 200px;
-      margin-bottom: 15px;
-    }
-
-    h1 {
-      font-size: 24px;
-      color: #2c3e50;
+      font-family: 'Inter', sans-serif;
+      padding: 0;
       margin: 0;
-      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
     }
 
-    h2 {
-      margin-top: 15px;
-      font-size: 18px;
-      border-left: 4px solid #4b9cd3;
-      padding-left: 12px;
-      color: #2c3e50;
-      font-weight: 600;
+    .page { padding: 40px; }
+
+    /* Header com Identidade Visual */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 4px solid #4b2a59; /* Brand Purple */
+      padding-bottom: 20px;
+      margin-bottom: 30px;
     }
 
-    .card {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 20px;
-      border: 1px solid #e9ecef;
-      font-size: 13px;
+    .logo { width: 140px; }
+    
+    .header-info { text-align: right; }
+    .header-info h1 { 
+      margin: 0; 
+      font-size: 22px; 
+      font-weight: 800; 
+      color: #4b2a59;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+    }
+
+    /* Cards de Informação Geral */
+    .info-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr; /* Divide info em duas colunas */
-      gap: 10px;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
     }
 
-    .stats {
+    .info-card {
+      background: #fdfbff;
+      border: 1px solid #f0e6f5;
+      padding: 15px;
+      border-radius: 16px;
+    }
+
+    .info-label {
+      font-size: 10px;
+      font-weight: 800;
+      color: #a084ad;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .info-value { font-size: 13px; font-weight: 600; color: #333; }
+
+    /* Stats Grid Moderno */
+    .stats-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 15px;
-      margin-top: 15px;
+      margin-bottom: 40px;
     }
 
-    .stat-item {
-      background: #fff;
-      border-radius: 8px;
-      padding: 15px;
-      border: 1px solid #dfe6ed;
+    .stat-box {
+      padding: 20px;
+      border-radius: 24px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
     }
 
-    .stat-item strong {
-      display: block;
-      color: #6c757d;
-      font-size: 12px;
+    .stat-avg { background: #f7f3f9; border: 1px solid #e9dff0; }
+    .stat-min { background: #eff6ff; border: 1px solid #dbeafe; }
+    .stat-max { background: #fff1f2; border: 1px solid #ffe4e6; }
+
+    .stat-label { font-size: 11px; font-weight: 700; color: #666; display: block; margin-bottom: 8px; }
+    .stat-val { font-size: 28px; font-weight: 800; }
+    .stat-avg .stat-val { color: #4b2a59; }
+    .stat-min .stat-val { color: #2563eb; }
+    .stat-max .stat-val { color: #e11d48; }
+
+    /* Seção de Texto */
+    h2 {
+      font-size: 14px;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 5px;
+      letter-spacing: 1px;
+      color: #4b2a59;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .stat-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #2c3e50;
-    }
+    h2::after { content: ""; flex: 1; height: 1px; background: #eee; }
 
-    .report-text {
+    .report-content {
       background: #fff;
-      padding: 10px 0;
+      border: 1px solid #f0f0f0;
+      border-radius: 20px;
+      padding: 25px;
+      font-size: 13px;
       color: #444;
       text-align: justify;
-      /* white-space: pre-wrap é uma "rede de segurança".
-         Ele garante que se sobrar algum \n real, o HTML quebra a linha.
-      */
-      white-space: pre-wrap; 
+      margin-bottom: 30px;
     }
 
-    .report-text p {
-      margin-bottom: 15px;
-      margin-top: 0px; /* Espaçamento entre parágrafos */
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      font-size: 13px;
-    }
-
-    table th {
-      background: #f1f3f5;
-      color: #495057;
-      padding: 12px;
-      text-align: left;
-      font-weight: 600;
-    }
-
-    table td {
-      padding: 12px;
-      border-bottom: 1px solid #dee2e6;
-    }
+    /* Tabela Clean */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { text-align: left; font-size: 11px; color: #999; padding: 10px; border-bottom: 1px solid #eee; }
+    td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #f9f9f9; font-weight: 600; }
 
     .footer {
+      margin-top: 50px;
       text-align: center;
-      margin-top: 60px;
-      padding-top: 20px;
+      font-size: 10px;
+      color: #aaa;
       border-top: 1px solid #eee;
-      font-size: 11px;
-      color: #9fa3a7ff;
+      padding-top: 20px;
     }
   </style>
 </head>
 
 <body>
-
-  <div class="header">
-    <img class="logo" src="${logoSrc}" alt="Logo SafeTemp" />
-    <h1>Relatório de Temperatura</h1>
-    <p style="color: #777; margin-top: 5px;">Sistema de Monitoramento SafeTemp</p>
-  </div>
-
-  <h2>Informações Gerais</h2>
-  <div class="card">
-    <div><strong>ID Relatório:</strong> ${relatorio.id}</div>
-    <div><strong>Chip ID:</strong> ${relatorio.chip_id}</div>
-    <div><strong>Gerado em:</strong> ${formatDateBR(relatorio.criado_em)}</div>
-    <div><strong>Intervalo:</strong> ${formatIsoToBR(resumo.intervalo) ?? "—"}</div>
-  </div>
-
-  <h2>Resumo Estatístico</h2>
-  <div class="stats">
-    <div class="stat-item">
-      <strong>Média Geral</strong>
-      <div class="stat-value">${resumo.media.toFixed(2) ?? "—"}°C</div>
+  <div class="page">
+    <div class="header">
+      <img class="logo" src="${logoSrc}" alt="Logo SafeTemp" />
+      <div class="header-info">
+        <h1>Relatório Técnico</h1>
+        <div style="font-size: 11px; color: #a084ad; font-weight: 600;">Sistema SafeTemp • 2026</div>
+      </div>
     </div>
-    <div class="stat-item">
-      <strong>Mínima Absoluta</strong>
-      <div class="stat-value" style="color: #2980b9;">${resumo.min.toFixed(2) ?? "—"}°C</div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <span class="info-label">Identificação</span>
+        <div class="info-value">Dispositivo (Chip ID): ${relatorio.chip_id}</div>
+        <div class="info-value" style="font-size: 11px; color: #999;">ID Relatório: #${relatorio.id}</div>
+        <div class="info-value" style="font-size: 11px; color: #999;">Gerado em: ${formatIsoToBR(relatorio.criado_em)}</div>
+      </div>
+      <div class="info-card">
+        <span class="info-label">Período de Análise</span>
+        <div class="info-value">${formatIsoToBR(resumo.intervalo)}</div>
+      </div>
     </div>
-    <div class="stat-item">
-      <strong>Máxima Absoluta</strong>
-      <div class="stat-value" style="color: #c0392b;">${resumo.max.toFixed(2) ?? "—"}°C</div>
+
+    <h2>Resumo Estatístico</h2>
+    <div class="stats-container">
+      <div class="stat-box stat-avg">
+        <span class="stat-label">Média Geral</span>
+        <div class="stat-val">${resumo.media.toFixed(2)}°C</div>
+      </div>
+      <div class="stat-box stat-min">
+        <span class="stat-label">Mínima</span>
+        <div class="stat-val">${resumo.min.toFixed(2)}°C</div>
+      </div>
+      <div class="stat-box stat-max">
+        <span class="stat-label">Máxima</span>
+        <div class="stat-val">${resumo.max.toFixed(2)}°C</div>
+      </div>
+    </div>
+
+    <h2>Análise Processada por IA</h2>
+    <div class="report-content">
+      <p>${text}</p>
+    </div>
+
+    <h2>Dados de Integridade</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Métrica de Coleta</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Amostras Processadas</td>
+          <td>${resumo.registros} registros</td>
+        </tr>
+        <tr>
+          <td>Desvio Padrão</td>
+          <td>${resumo.std.toFixed(3)} °C</td>
+        </tr>
+        <tr>
+          <td>Outliers (Anomalias)</td>
+          <td style="color: ${resumo.totalOutliers > 0 ? '#e11d48' : '#10b981'}">
+            ${resumo.totalOutliers} detectados
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Este documento é uma análise automática gerada pelo SafeTemp via Microsoft Azure.<br>
+      Autenticidade garantida por Chip ID: ${relatorio.chip_id} • Gerado em: ${formatDateBR(new Date())}
     </div>
   </div>
-
-  <h2>Análise Detalhada</h2>
-  <div class="report-text">
-    ${text}
-  </div>
-
-  <h2>Metadados da Coleta</h2>
-  <table>
-    <thead>
-      <tr>
-        <th width="40%">Métrica</th>
-        <th>Valor Apurado</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Registros Processados</td>
-        <td>${resumo.registros ?? "—"} amostras</td>
-      </tr>
-      <tr>
-        <td>Outliers Identificados</td>
-        <td>${resumo.totalOutliers ?? "0"} ocorrências</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="footer">
-    PDF gerado pelo sistema SafeTemp. <br>
-    Data de geração: ${formatDateBR(new Date())} 
-  </div>
-
 </body>
 </html>`;
 }

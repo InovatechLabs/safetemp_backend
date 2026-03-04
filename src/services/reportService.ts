@@ -2,41 +2,37 @@ import puppeteer from "puppeteer";
 import { reportTemplate } from "../utils/templates/reportsTemplate";
 
 export async function generateReportPDF(report: any) {
-
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage", 
-            "--disable-gpu",
-            "--no-first-run",
-            "--single-process", 
-            "--no-zygote",
-            "--disable-accelerated-2d-canvas",
-            "--disable-extensions",
-        ],
-    });
-
+    let browser = null;
     try {
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage", 
+            ],
+        });
+
         const page = await browser.newPage();
         const html = reportTemplate(report);
 
         await page.setContent(html, {
-            waitUntil: "domcontentloaded"
+            waitUntil: "load", 
+            timeout: 20000     
         });
 
-        const pdf = await page.pdf({
-            format: "A4",
-            printBackground: true
+        const pdf = await page.pdf({ 
+            format: "A4", 
+            printBackground: true,
+            margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } 
         });
 
         return pdf;
 
     } catch (error) {
-        console.error("Erro no Puppeteer:", error);
+        console.error("Erro na geração do PDF SafeTemp:", error);
         throw error;
     } finally {
-        if (browser) await browser.close(); 
+        if (browser) await browser.close();
     }
-}
+};

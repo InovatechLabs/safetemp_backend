@@ -11,9 +11,17 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+const cookieOptions = {
+    httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000 
+};
+
 export const register = async (req: AuthenticatedRequest, res: Response) => {
 
     const { name, email, password } = req.body;
+    const platform = req.headers['x-platform'];
 
     try {
 
@@ -37,6 +45,11 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
             password: hashedPassword
          },
         }); 
+        if (platform === 'web') {
+            const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
+            res.cookie('token', token, cookieOptions);
+            return res.status(201).json({ success: true, message: 'Usuário criado e logado.' });
+        }
         res.status(201).json({
 
             success: true,
@@ -53,6 +66,8 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
 export const login = async (req: AuthenticatedRequest, res: Response) => {
 
     const { email, password, token2FA } = req.body;
+    const isWeb = req.headers['x-platform'] === 'web';
+
     if (!process.env.JWT_TEMP_SECRET) throw new Error('Variável de ambiente JWT_TEMP_SECRET não inicializada.')
 
     try {
@@ -75,6 +90,11 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
                 const tempToken = jwt.sign({
                 id: user.id }, process.env.JWT_TEMP_SECRET, { expiresIn: '15m'})
 
+                if (isWeb) {
+                    res.cookie('tempToken', tempToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+                    return res.status(206).json({ message: '2FA necessário', requires2FA: true });
+                }
+
             return res.status(206).json({
                 message: 'Código 2FA necessário.',
                 requires2FA: true,
@@ -96,13 +116,53 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         const token = jwt.sign({ id: user.id}, process.env.JWT_SECRET!, {expiresIn: '7d'});
+
+        if (isWeb) {
+            res.cookie('token', token, cookieOptions);
+            res.clearCookie('tempToken'); 
+            return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
+        }
         return res.status(200).json({ 
             success: true,
             token 
-        })
+        });
    
     } catch (error) {
         console.log("Erro ao fazer login:", error)
         res.status(500).json({ message: 'Erro interno do servidor'});
     }
-}
+};
+
+export const logout = async (req: Request, res: Response) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', 
+    sameSite: 'lax',
+  });
+
+  res.status(200).json({ message: 'Logout bem-sucedido' })
+};
+
+export const getMe = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true, 
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error("Erro na rota /me:", error);
+    return res.status(500).json({ message: "Erro interno do servidor" });
+  }
+};
+
