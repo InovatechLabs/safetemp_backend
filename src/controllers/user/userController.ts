@@ -3,7 +3,6 @@ import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../middlewares/auth';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import passwordValidator from '../../validators/passwordValidator';
 import { PrismaClient } from '@prisma/client';
 import speakeasy from 'speakeasy';
 
@@ -25,26 +24,17 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
 
     try {
 
-        if(!name || !email || !password) return res.status(400).json({ message: 'Credenciais incompletos.'});
+        const userExists = await prisma.user.findUnique({ where: { email } });
+        if (userExists) return res.status(400).json({ message: 'E-mail já cadastrado.' });
 
-        if(!passwordValidator(password)) return res.status(400).json({ message: 'A senha não atende aos requisitos mínimos e/ou não possui caracteres suficientes.'})
-
-        const user = await prisma.user.findUnique({ 
-            where: { email }
-        });
-
-        if (user) return res.status(400).json({ message: 'E-mail já cadastrado.'})    
-
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(12); 
         const hashedPassword = await bcrypt.hash(password, salt);
         
         const newUser = await prisma.user.create({
-         data: {
-            name,
-            email,
-            password: hashedPassword
-         },
-        }); 
+            data: { name, email, password: hashedPassword },
+            select: { id: true, name: true, email: true } 
+        });
+
         if (platform === 'web') {
             const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
             res.cookie('token', token, cookieOptions);
@@ -78,11 +68,9 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
             where: { email }
         });
 
-        if(!user) return res.status(404).json({ message: 'Usuário não cadastrado.'});
-        const validPassword = await bcrypt.compare(password, user.password);
-
-
-        if(!validPassword) return res.status(400).json({ message: 'Senha incorreta.'});
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'E-mail ou senha incorretos.' });
+        }
 
         if (user.is2FAEnabled) {
             if (!token2FA) {

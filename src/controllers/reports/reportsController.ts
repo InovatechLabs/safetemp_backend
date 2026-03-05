@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { generateReportPDF } from '../../services/reportService';
 import { getDayRange } from '../../utils/dateRange';
+import { calcStats } from '../../utils/statistics';
 
 const prisma = new PrismaClient();
 
@@ -131,4 +132,35 @@ export const exportPDF = async (req: Request, res: Response) => {
         console.error(err);
         return res.status(500).json({ error: "Erro ao gerar PDF" });
     }
+};
+
+export const getReportData = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+  try {
+    
+    const reportId = Number(id);
+
+    const report = await prisma.relatorios.findUnique({ where: { id: reportId } });
+    if (!report) return res.status(404).json({ message: "Relatório não encontrado" });
+
+    const endTime = new Date(report.data);
+    const startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
+
+    const records = await prisma.temperatura.findMany({
+      where: {
+        timestamp: {
+          gte: startTime,
+          lte: endTime,
+        },
+      },
+      orderBy: { timestamp: 'asc' },
+    });
+    const sv = records.map(r => r.value);
+    const statistics = calcStats(sv);
+
+    res.json({ records, statistics });
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao reconstruir dados do gráfico" });
+  }
 };

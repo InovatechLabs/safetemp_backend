@@ -18,12 +18,13 @@ import notificationsRouter from './routes/user/notifications/notificationsRoutes
 import { startWatchdog } from './services/watchdog/watchdogService';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
-import { authenticate } from './middlewares/auth';
+import helmet from 'helmet';
 
 dotenv.config({ path: ".env" });
 
 
 const app = express();
+app.use(helmet());
 const prisma = new PrismaClient();
 
 // ===================== MIDDLEWARES =====================
