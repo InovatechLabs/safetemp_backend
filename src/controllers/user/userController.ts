@@ -62,7 +62,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
     try {
 
-        if(!email || !password) return res.status(401).json({ message: 'Todos credenciais são necessários.'})
+        if(!email || !password) return res.status(400).json({ message: 'Todos credenciais são necessários.'})
 
         const user = await prisma.user.findUnique({
             where: { email }
