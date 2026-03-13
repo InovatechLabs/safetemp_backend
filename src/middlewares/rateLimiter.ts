@@ -19,3 +19,12 @@ export const apiLimiter = rateLimit({
         message: 'Aguarde um momento antes de solicitar mais dados.'
     }
 });
+
+export const heavyContentLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    limit: 10,
+    message: {
+        status: 429,
+        message: 'Muitas solicitações de documentos. Aguarde um minuto.'
+    }
+})

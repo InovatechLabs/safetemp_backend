@@ -10,10 +10,11 @@ import {
     saveUserToken
 } from "../../../controllers/user/alerts/alertsController";
 import { authenticate } from "../../../middlewares/auth";
+import { apiLimiter } from "../../../middlewares/rateLimiter";
 
 const alertsRouter = Router();
 
-alertsRouter.post('/register-alert', authenticate, registerAlert);
+alertsRouter.post('/register-alert', apiLimiter, authenticate, registerAlert);
 alertsRouter.post('/save-token', authenticate, saveUserToken);
 alertsRouter.get('/list', authenticate, listUserAlerts);
 

@@ -65,6 +65,5 @@ export async function generateReports(): Promise<void> {
     console.error("[CRON] Erro ao gerar relatório:", error.message);
   }
 }
-generateReports();
 
 cron.schedule("0 * * * *", generateReports);
