@@ -9,7 +9,7 @@ export const generateExperimentReport = async (experimentData: any, records: any
   if (!SECRET_KEY || !PYTHON_API_URL) throw new Error('Variáveis de ambiente não configuradas corretamente ou ausentes.')
   
   try {
-    const url = `${process.env.PYTHON_API_URL}/gerar-laudo-experimento`.replace(/\/+/g, '/').replace(':/', '://');
+    const url = `${process.env.PYTHON_API_URL}/reports/gerar-laudo-experimento`.replace(/\/+/g, '/').replace(':/', '://');
 
     if (!records || records.length === 0) {
       console.log("AVISO: Array de records está vazio!");

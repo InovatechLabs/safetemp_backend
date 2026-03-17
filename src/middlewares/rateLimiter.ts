@@ -27,4 +27,13 @@ export const heavyContentLimiter = rateLimit({
         status: 429,
         message: 'Muitas solicitações de documentos. Aguarde um minuto.'
     }
-})
+});
+
+export const groqAILimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 2,
+    message: {
+        status: 429,
+        message: 'Muitas solicitações de chamada de IA. Aguarde um momento.'
+    }
+});

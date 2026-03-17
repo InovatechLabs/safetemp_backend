@@ -33,7 +33,7 @@ export async function generateReports(): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
 
-    const pythonResponse = await fetch(`${PYTHON_API_URL}/gerar-report`, {
+    const pythonResponse = await fetch(`${PYTHON_API_URL}/reports/gerar-report`, {
       method: "POST",
       headers: { 
       "Content-Type": "application/json",

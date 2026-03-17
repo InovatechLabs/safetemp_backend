@@ -15,6 +15,7 @@ import reportsRouter from './routes/reports/reportsRoutes';
 import experimentsRouter from './routes/user/experiments/experimentsRoutes';
 import comparisonRouter from './routes/comparison/comparisonRoutes';
 import notificationsRouter from './routes/user/notifications/notificationsRoutes';
+import insightsRouter from './routes/insights/insightsRoutes';
 import { startWatchdog } from './services/watchdog/watchdogService';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
@@ -60,6 +61,7 @@ app.use("/api/reports", reportsRouter); // Rotas para relatórios
 app.use("/api/experiments", experimentsRouter); // Rotas para experimentos
 app.use("/api/comparison", comparisonRouter); // Comparação de dados
 app.use("/api/notifications", notificationsRouter); // Visualização e gerenciamento de notificações
+app.use("/api/insights", insightsRouter); // Geração de Insights com a IA
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec)); // Documentação da API
 
