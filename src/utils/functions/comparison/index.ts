@@ -44,7 +44,7 @@ export function compareStats(
   const analysis: ComparisonAnalysis = {
     moreStable: compareValues(statsA.CVNoOutlier, statsB.CVNoOutlier),
     lowerVariability: compareValues(statsA.variancia, statsB.variancia),
-    moreOutliers: compareValues(statsA.totalOutliers, statsB.totalOutliers),
+    moreOutliers: compareValues(statsB.totalOutliers, statsA.totalOutliers),
     percentualChangeMedia: ((statsB.media - statsA.media) / statsA.media) * 100,
     percentualChangeVariancia:
       ((statsB.variancia - statsA.variancia) / statsA.variancia) * 100,
@@ -128,15 +128,30 @@ export function buildComparisonSummary(
 }
 
 export function sampleBalance(nA: number, nB: number) {
-  const ratio = Math.min(nA, nB) / Math.max(nA, nB);
+  // Evita divisão por zero se ambos os períodos estiverem vazios
+  const maxRecords = Math.max(nA, nB);
+  const ratio = maxRecords === 0 ? 0 : Math.min(nA, nB) / maxRecords;
+  const total = nA + nB;
+  const minRecords = Math.min(nA, nB);
 
   let imbalanceLevel: "baixo" | "médio" | "alto";
   let reliability: "boa" | "limitada" | "baixa";
 
-  if (Math.min(nA, nB) < 30) {
+  /**
+   * 1. CRITÉRIO DE VOLUME MÍNIMO
+   * Se o total de amostras for muito baixo ou um dos lados for quase inexistente (< 10),
+   * a confiabilidade é baixa independente do ratio.
+   */
+  if (total < 20 || minRecords < 10) {
     imbalanceLevel = "alto";
     reliability = "baixa";
-  } else if (ratio >= 0.75) {
+  } 
+  /**
+   * 2. CRITÉRIO DE PARIDADE (RATIO)
+   * Se passou no volume mínimo, checamos o equilíbrio entre A e B.
+   */
+  else if (ratio >= 0.8) {
+    // Séries muito próximas (ex: 100 vs 85 registros)
     imbalanceLevel = "baixo";
     reliability = "boa";
   } else if (ratio >= 0.4) {
@@ -147,5 +162,11 @@ export function sampleBalance(nA: number, nB: number) {
     reliability = "baixa";
   }
 
-  return { recordsA: nA, recordsB: nB, ratio, imbalanceLevel, reliability };
+  return { 
+    recordsA: nA, 
+    recordsB: nB, 
+    ratio, 
+    imbalanceLevel, 
+    reliability 
+  };
 }
