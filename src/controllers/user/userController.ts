@@ -11,18 +11,20 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
-    maxAge: 60 * 60 * 1000 // 1 hora — token de acesso
+    secure: isProd, 
+    sameSite: isProd ? 'none' as const : 'lax' as const,
+    maxAge: 60 * 60 * 1000 // 1 hora
 };
 
 export const refreshCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias — refresh token
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' as const : 'lax' as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
 };
 
 export const register = async (req: AuthenticatedRequest, res: Response) => {
