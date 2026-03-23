@@ -18,6 +18,13 @@ function compareValues(
   return 'equal';
 };
 
+function stabilityScore(stats: TemperatureStats): number {
+  const outlierPenalty = stats.totalRecords > 0 
+    ? (stats.totalOutliers / stats.totalRecords) * 100 
+    : 0;
+  return stats.CVOutlier + outlierPenalty;
+}
+
 export function compareStats(
   statsA: TemperatureStats,
   statsB: TemperatureStats
@@ -42,12 +49,11 @@ export function compareStats(
   };
 
   const analysis: ComparisonAnalysis = {
-    moreStable: compareValues(statsA.CVNoOutlier, statsB.CVNoOutlier),
+    moreStable: compareValues(stabilityScore(statsA), stabilityScore(statsB)),
     lowerVariability: compareValues(statsA.variancia, statsB.variancia),
     moreOutliers: compareValues(statsB.totalOutliers, statsA.totalOutliers),
     percentualChangeMedia: ((statsB.media - statsA.media) / statsA.media) * 100,
-    percentualChangeVariancia:
-      ((statsB.variancia - statsA.variancia) / statsA.variancia) * 100,
+    percentualChangeVariancia: ((statsB.variancia - statsA.variancia) / statsA.variancia) * 100,
   };
 
   return {

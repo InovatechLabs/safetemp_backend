@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import generateBackupCode from '../../../utils/functions/generateBackupCode';
 import jwt from 'jsonwebtoken';
+import { cookieOptions, refreshCookieOptions } from '../userController';
+import { hashToken } from '../../../utils/functions/auth/hashToken';
 
 
 dotenv.config();
@@ -100,81 +102,119 @@ export const verify2FA = async (req: AuthenticatedRequest, res: Response) => {
 
 export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) => {
 
-    if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
-    if (!process.env.JWT_SECRET) throw new Error("Variável de ambiente JWT_SECRET não incializada ou não encontrada.");
+  if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
+  if (!process.env.JWT_SECRET) throw new Error("Variável de ambiente JWT_SECRET não incializada ou não encontrada.");
 
-    const { token2FA, tempToken } = req.body;
+  const { token2FA } = req.body;
+  const isWeb = req.headers['x-platform'] === 'web';
 
-    try {
-        const decodedTempToken = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET) as { id: number };
-        if(!decodedTempToken) return res.status(401).json({ message: 'Token inválido ou expirado.' });
+  const tempToken = req.cookies?.tempToken || req.body.tempToken;
+  if (!tempToken) {
+    return res.status(401).json({ message: 'Sessão expirada. Faça login novamente.' });
+  }
 
-        const user = await prisma.user.findUnique({
-            where: { id: decodedTempToken.id }
-        });
-        if (!user || !user.twoFASecret) return res.status(400).json({ message: 'Autenticação dois fatores não configurada para este usuário.' });
+  try {
+    const decodedTempToken = jwt.verify(tempToken, process.env.JWT_TEMP_SECRET) as { id: number };
+    if (!decodedTempToken) return res.status(401).json({ message: 'Token inválido ou expirado.' });
 
-        const validToken = speakeasy.totp.verify({
-            secret: user.twoFASecret,
-            encoding: 'base32',
-            token: token2FA,
-            window: 1,
-        });
-        if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
+    const user = await prisma.user.findUnique({
+      where: { id: decodedTempToken.id }
+    });
+    if (!user || !user.twoFASecret) return res.status(400).json({ message: 'Autenticação dois fatores não configurada para este usuário.' });
 
-        const token = jwt.sign({ id: decodedTempToken.id }, process.env.JWT_SECRET, { expiresIn: '3h'});
+    const validToken = speakeasy.totp.verify({
+      secret: user.twoFASecret,
+      encoding: 'base32',
+      token: token2FA,
+      window: 1,
+    });
+    if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
 
-        return res.status(200).json({
-            message: 'Login bem-sucedido',
-            success: true,
-            token
-        });
-    } catch (error) {
-        console.error("Erro ao verificar código 2FA:", error);
-        return res.status(500).json({ message: 'Erro interno do servidor' });
+    const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
+
+    const refreshTokenHash = hashToken(refreshToken);
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: refreshTokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      }
+    });
+
+    if (isWeb) {
+      res.cookie('token', accessToken, cookieOptions);
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+      res.clearCookie('tempToken');
+      return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
     }
+
+    return res.status(200).json({
+      success: true,
+      accessToken,
+      refreshToken,
+    });
+
+  } catch (error) {
+    console.error("Erro ao verificar código 2FA:", error);
+    return res.status(500).json({ message: 'Erro interno do servidor' });
+  }
 };
 
 export const verifyBackupCode = async (req: AuthenticatedRequest, res: Response) => {
 
-    if (!process.env.JWT_TEMP_SECRET) throw new Error("Variável de ambiente JWT_TEMP_SECRET não incializada ou não encontrada.");
-
-    try {
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET não encontrada.");
+  if (!process.env.JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET não encontrada.");
+  
+  try {
     const { backupCode } = req.body;
+    const isWeb = req.headers['x-platform'] === 'web';
 
-    const userId = req.user?.id;
-    if (!req.user) return res.status(401).json({ message: 'Usuário não autenticado.' });
+    if (!backupCode) {
+      return res.status(400).json({ message: 'Código de backup é obrigatório.' });
+    }
 
-    const validCode = await prisma.user.findFirst({
-        where: { 
-            id: userId, 
-            backupCode: backupCode 
-        },
+    const user = await prisma.user.findFirst({
+      where: { backupCode },
     });
 
-    if(!validCode) return res.status(404).json({message: 'Não foi possível encontrar este código de backup'});
-    
-    const token = jwt.sign({ id: validCode.id }, process.env.JWT_TEMP_SECRET, {expiresIn: '1h'});
+    if (!user) {
+      return res.status(404).json({ message: 'Código de backup inválido.' });
+    }
 
     await prisma.user.update({
-        where: { id: userId },
-        data: {
-            backupCode: null,
-            is2FAEnabled: false,
-            twoFASecret: null,
-        }
+      where: { id: user.id },
+      data: {
+        backupCode: null,
+        is2FAEnabled: false,
+        twoFASecret: null,
+      }
     });
 
-    return res.status(200).json({
-        message: 'Login bem-sucedido',
-        success: true,
-        fromBackupVerify: true,
-        token
+    const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
+
+    const refreshTokenHash = hashToken(refreshToken);
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: refreshTokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      }
     });
-  
+
+    if (isWeb) {
+      res.cookie('token', accessToken, cookieOptions);
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+      res.clearCookie('tempToken');
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(200).json({ success: true, accessToken, refreshToken });
+
   } catch (err) {
-    console.error("Erro ao verificar backup code:", err);
-    return res.status(500).json({ message: 'Erro ao verificar backup code', err });
+    console.error('Erro ao verificar backup code:', err);
+    return res.status(500).json({ message: 'Erro ao verificar backup code.' });
   }
 };
 

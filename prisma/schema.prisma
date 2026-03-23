@@ -36,6 +36,8 @@ model User {
   alerts            Alerts[]
   notifications     Notification[]
   experimentos Experimento[]
+
+  refreshTokens RefreshToken[]
 }
 
 model Device {
@@ -100,4 +102,16 @@ model Notification {
   alert     Alerts?  @relation(fields: [alert_id], references: [id], onDelete: SetNull)
 
   @@index([user_id]) // Index para buscas rápidas de histórico por usuário
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

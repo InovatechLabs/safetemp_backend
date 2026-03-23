@@ -16,6 +16,16 @@ export const registerTemperature = async ( req: Request, res: Response ) => {
 
     if (!chipId || temp === undefined) return res.status(400).json({ message: 'Todos dados são necessários.' });
 
+    const parsedTemp = Number(temp);
+
+  if (isNaN(parsedTemp)) {
+    return res.status(400).json({ message: 'Temperatura deve ser um número válido.' });
+  }
+
+  if (parsedTemp < -50 || parsedTemp > 150) {
+    return res.status(400).json({ message: `Temperatura fora do intervalo permitido (-50°C a 100°C). Valor recebido: ${parsedTemp}` });
+  }
+
     try {
 
         const device = await prisma.device.findUnique({
@@ -307,35 +317,76 @@ export const exportCSV = async (req: Request, res: Response) => {
     }
 };
 
+const TEMP_MIN = -50;
+const TEMP_MAX = 150;
+const BATCH_MAX_RECORDS = 1440;
 
 export const batchRegisterTemperature = async (req: Request, res: Response) => {
-    
-    const { chipId, records } = req.body; 
+  const { chipId, records } = req.body;
 
-    if (!chipId || !Array.isArray(records) || records.length === 0) {
-        return res.status(400).json({ message: 'Formato inválido ou lista vazia.' });
+  if (!chipId || !Array.isArray(records) || records.length === 0) {
+    return res.status(400).json({ message: 'Formato inválido ou lista vazia.' });
+  }
+
+  if (records.length > BATCH_MAX_RECORDS) {
+    return res.status(400).json({ 
+      message: `Lote muito grande. Máximo permitido: ${BATCH_MAX_RECORDS} registros.` 
+    });
+  }
+
+  try {
+    const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
+    if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
+
+    const invalidRecords: number[] = [];
+    const dataToInsert = [];
+
+    for (let i = 0; i < records.length; i++) {
+      const rec = records[i];
+      const value = Number(rec.value);
+      const timestamp = new Date(rec.timestamp);
+
+      // Valida valor
+      if (isNaN(value) || value < TEMP_MIN || value > TEMP_MAX) {
+        invalidRecords.push(i);
+        continue;
+      }
+
+      // Valida timestamp — não aceita datas futuras nem muito antigas (mais de 30 dias)
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      if (isNaN(timestamp.getTime()) || timestamp > now || timestamp < thirtyDaysAgo) {
+        invalidRecords.push(i);
+        continue;
+      }
+
+      dataToInsert.push({ chipId, value, timestamp });
     }
 
-    try {
-        const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
-        if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
-
-        const dataToInsert = records.map((rec: any) => ({
-            chipId: chipId,          
-            value: Number(rec.value), 
-            timestamp: new Date(rec.timestamp) 
-        }));
-
-        const result = await prisma.temperatura.createMany({
-            data: dataToInsert,
-            skipDuplicates: true 
-        });
-
-        console.log(`[BATCH] Recebidos ${records.length}, Salvos ${result.count}`);
-        return res.status(201).json({ message: `Sincronização concluída. ${result.count} registros salvos.` });
-
-    } catch (error) {
-        console.error('Erro no batch upload:', error);
-        return res.status(500).json({ message: 'Erro interno ao salvar lote.' });
+    if (dataToInsert.length === 0) {
+      return res.status(400).json({ 
+        message: 'Nenhum registro válido encontrado no lote.',
+        invalidIndexes: invalidRecords 
+      });
     }
+
+    const result = await prisma.temperatura.createMany({
+      data: dataToInsert,
+      skipDuplicates: true,
+    });
+
+    console.log(`[BATCH] Recebidos: ${records.length} | Válidos: ${dataToInsert.length} | Salvos: ${result.count} | Inválidos: ${invalidRecords.length}`);
+
+    return res.status(201).json({ 
+      message: `Sincronização concluída. ${result.count} registros salvos.`,
+      saved: result.count,
+      skipped: invalidRecords.length,
+      ...(invalidRecords.length > 0 && { invalidIndexes: invalidRecords })
+    });
+
+  } catch (error) {
+    console.error('Erro no batch upload:', error);
+    return res.status(500).json({ message: 'Erro interno ao salvar lote.' });
+  }
 };

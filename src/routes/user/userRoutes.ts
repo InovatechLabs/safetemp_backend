@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, getMe, logout } from "../../controllers/user/userController";
+import { register, login, getMe, logout, logoutAll, refresh } from "../../controllers/user/userController";
 import { authenticate } from "../../middlewares/auth";
 import { validate } from "../../middlewares/zod";
 import { LoginSchema } from "../../validators/auth.validator";
@@ -10,6 +10,8 @@ const userRouter = Router();
 
 userRouter.post("/register", authLimiter, validate(RegisterSchema), register);
 userRouter.post("/login", authLimiter, validate(LoginSchema), login);
+userRouter.post("/refresh", refresh);
+userRouter.post("/logout-all", authenticate, logoutAll);
 
 // Utilizadas pela versão Web apenas!
 userRouter.post("/logout", logout); 

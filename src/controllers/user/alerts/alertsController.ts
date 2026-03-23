@@ -241,15 +241,4 @@ export const editAlertName = async (req: AuthenticatedRequest, res: Response) =>
         console.error("Erro ao editar nome de alerta:", error);
         return res.status(500).json({ message: 'Erro interno do servidor' });
     }
-}
-
-export const list = async (req: Request, res: Response) => {
-
-    try {
-        const alerts = await prisma.alerts.findMany();
-        res.status(200).json(alerts);
-    } catch (error) {
-        console.error("Erro ao listar alertas:", error);
-        return res.status(500).json({ message: 'Erro interno do servidor' });
-    }
-}
+};

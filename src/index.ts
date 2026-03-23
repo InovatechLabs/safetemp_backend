@@ -1,25 +1,36 @@
+// ================= LIBRARIES ==================
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
+import helmet from 'helmet';
+
+// ===================== ROUTERS =====================
+
 import userRouter from './routes/user/userRoutes';
 import dataRouter from './routes/arduino/dataRoutes';
 import firmwareRouter from './routes/arduino/firmwareRoutes/updateFirmware';
 import alertsRouter from './routes/user/alerts/alertsRoutes';
-import './jobs/alertChecker';
-import './scheduler/reportScheduler';
 import TwoFARouter from './routes/user/2fa/2FARoutes';
 import reportsRouter from './routes/reports/reportsRoutes';
 import experimentsRouter from './routes/user/experiments/experimentsRoutes';
 import comparisonRouter from './routes/comparison/comparisonRoutes';
 import notificationsRouter from './routes/user/notifications/notificationsRoutes';
 import insightsRouter from './routes/insights/insightsRoutes';
-import { startWatchdog } from './services/watchdog/watchdogService';
+import recoverPasswordRouter from './routes/recoverPassword/recoverPasswordRoutes';
+
+// ===================== DOCS API =====================
+
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
-import helmet from 'helmet';
+
+// =============== JOBS & SCHEDULERS ===============
+import './jobs/alertChecker';
+import './scheduler/reportScheduler';
+import './jobs/tokenCleaner';
+import { startWatchdog } from './services/watchdog/watchdogService';
 
 dotenv.config({ path: ".env" });
 
@@ -54,6 +65,7 @@ app.use(cookieParser());
 
 app.use("/api/user", userRouter);    // Autenticação
 app.use("/api/2fa", TwoFARouter); // Autenticação dois fatores
+app.use("/api/recover", recoverPasswordRouter); // Recuperação de senha
 app.use("/api/data", dataRouter);    // Registro de dados 
 app.use("/api/firmware", firmwareRouter); // Atualização OTA do firmware 
 app.use("/api/alerts", alertsRouter); // Funcionalidade de alertas
