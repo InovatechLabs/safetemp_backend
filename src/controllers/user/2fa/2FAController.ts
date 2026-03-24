@@ -130,7 +130,7 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
     });
     if (!validToken) return res.status(401).json({ message: 'Código 2FA inválido.' });
 
-    const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '10s' });
+    const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
     const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
 
     const refreshTokenHash = hashToken(refreshToken);

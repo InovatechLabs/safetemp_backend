@@ -114,7 +114,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
         }
 
-        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '10s' });
+        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
         const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
 
         const refreshTokenHash = hashToken(refreshToken);
