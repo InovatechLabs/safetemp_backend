@@ -11,18 +11,19 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+const isProd = process.env.NODE_ENV === 'production';
 
 export const cookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none' as const,
+    secure: isProd,
+    sameSite: isProd ? 'none' as const : 'lax' as const,
     maxAge: 60 * 60 * 1000
 };
 
 export const refreshCookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none' as const,
+    secure: isProd,
+    sameSite: isProd ? 'none' as const : 'lax' as const,
     maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
@@ -113,7 +114,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
         }
 
-        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '10s' });
         const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
 
         const refreshTokenHash = hashToken(refreshToken);
