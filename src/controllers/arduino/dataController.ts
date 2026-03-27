@@ -10,45 +10,45 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
-export const registerTemperature = async ( req: Request, res: Response ) => {
+function parseBody(req: Request): any {
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch { return {}; }
+  }
+  return req.body;
+}
 
-    const { chipId, temp, timestamp } = req.body;
+export const registerTemperature = async (req: Request, res: Response) => {
+  const body = parseBody(req);
+  const { chipId, temp } = body;
 
-    if (!chipId || temp === undefined) return res.status(400).json({ message: 'Todos dados são necessários.' });
+  if (!chipId || temp === undefined) {
+    return res.status(400).json({ message: 'Todos dados são necessários.' });
+  }
 
-    const parsedTemp = Number(temp);
-
+  const parsedTemp = Number(temp);
   if (isNaN(parsedTemp)) {
     return res.status(400).json({ message: 'Temperatura deve ser um número válido.' });
   }
-
-  if (parsedTemp < -50 || parsedTemp > 150) {
-    return res.status(400).json({ message: `Temperatura fora do intervalo permitido (-50°C a 100°C). Valor recebido: ${parsedTemp}` });
+  if (parsedTemp < TEMP_MIN || parsedTemp > TEMP_MAX) {
+    return res.status(400).json({
+      message: `Temperatura fora do intervalo permitido (${TEMP_MIN}°C a ${TEMP_MAX}°C). Valor recebido: ${parsedTemp}`,
+    });
   }
 
-    try {
+  try {
+    const device = (req as any).device;
+    if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
 
-        const device = await prisma.device.findUnique({
-            where: { mac_address: chipId }
-        });
+    const tempRegister = await prisma.temperatura.create({
+      data: { chipId, value: parsedTemp, timestamp: new Date() },
+    });
 
-        if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
-
-        const nowUtc = new Date();
-
-        const tempRegister = await prisma.temperatura.create({
-            data: {
-                chipId,
-                value: temp,
-                timestamp: nowUtc
-            },
-        });
-        res.status(201).json(tempRegister);
-    } catch (error) {
-        console.error('Erro ao registrar temperatura:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
-    }
-}
+    return res.status(201).json(tempRegister);
+  } catch (error) {
+    console.error('Erro ao registrar temperatura:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+};
 
 export const getLastRecord = async (req: Request, res: Response) => {
 
@@ -322,69 +322,49 @@ const TEMP_MAX = 150;
 const BATCH_MAX_RECORDS = 1440;
 
 export const batchRegisterTemperature = async (req: Request, res: Response) => {
-  const { chipId, records } = req.body;
+  const body = parseBody(req);
+  const { chipId, records } = body;
 
   if (!chipId || !Array.isArray(records) || records.length === 0) {
     return res.status(400).json({ message: 'Formato inválido ou lista vazia.' });
   }
-
   if (records.length > BATCH_MAX_RECORDS) {
-    return res.status(400).json({ 
-      message: `Lote muito grande. Máximo permitido: ${BATCH_MAX_RECORDS} registros.` 
-    });
+    return res.status(400).json({ message: `Lote muito grande. Máximo permitido: ${BATCH_MAX_RECORDS} registros.` });
   }
 
   try {
-    const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
+    const device = (req as any).device;
     if (!device) return res.status(401).json({ message: 'Dispositivo não autorizado.' });
 
+    const now            = new Date();
+    const thirtyDaysAgo  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const invalidRecords: number[] = [];
-    const dataToInsert = [];
+    const dataToInsert: { chipId: string; value: number; timestamp: Date }[] = [];
 
     for (let i = 0; i < records.length; i++) {
-      const rec = records[i];
-      const value = Number(rec.value);
-      const timestamp = new Date(rec.timestamp);
+      const value     = Number(records[i].value);
+      const timestamp = new Date(records[i].timestamp);
 
-      // Valida valor
-      if (isNaN(value) || value < TEMP_MIN || value > TEMP_MAX) {
-        invalidRecords.push(i);
-        continue;
-      }
-
-      // Valida timestamp — não aceita datas futuras nem muito antigas (mais de 30 dias)
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      if (isNaN(timestamp.getTime()) || timestamp > now || timestamp < thirtyDaysAgo) {
-        invalidRecords.push(i);
-        continue;
-      }
+      if (isNaN(value) || value < TEMP_MIN || value > TEMP_MAX) { invalidRecords.push(i); continue; }
+      if (isNaN(timestamp.getTime()) || timestamp > now || timestamp < thirtyDaysAgo) { invalidRecords.push(i); continue; }
 
       dataToInsert.push({ chipId, value, timestamp });
     }
 
     if (dataToInsert.length === 0) {
-      return res.status(400).json({ 
-        message: 'Nenhum registro válido encontrado no lote.',
-        invalidIndexes: invalidRecords 
-      });
+      return res.status(400).json({ message: 'Nenhum registro válido no lote.', invalidIndexes: invalidRecords });
     }
 
-    const result = await prisma.temperatura.createMany({
-      data: dataToInsert,
-      skipDuplicates: true,
-    });
+    const result = await prisma.temperatura.createMany({ data: dataToInsert, skipDuplicates: true });
 
-    console.log(`[BATCH] Recebidos: ${records.length} | Válidos: ${dataToInsert.length} | Salvos: ${result.count} | Inválidos: ${invalidRecords.length}`);
+    console.log(`[BATCH] Recebidos: ${records.length} | Salvos: ${result.count} | Inválidos: ${invalidRecords.length}`);
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       message: `Sincronização concluída. ${result.count} registros salvos.`,
       saved: result.count,
       skipped: invalidRecords.length,
-      ...(invalidRecords.length > 0 && { invalidIndexes: invalidRecords })
+      ...(invalidRecords.length > 0 && { invalidIndexes: invalidRecords }),
     });
-
   } catch (error) {
     console.error('Erro no batch upload:', error);
     return res.status(500).json({ message: 'Erro interno ao salvar lote.' });

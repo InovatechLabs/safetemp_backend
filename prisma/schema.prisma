@@ -43,6 +43,7 @@ model User {
 model Device {
   id          Int    @id @default(autoincrement())
   mac_address String @unique
+  deviceSecret String
   experimentos Experimento[]
 }
 

@@ -6,6 +6,7 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
 import helmet from 'helmet';
+import http from 'http';
 
 // ===================== ROUTERS =====================
 
@@ -20,6 +21,7 @@ import comparisonRouter from './routes/comparison/comparisonRoutes';
 import notificationsRouter from './routes/user/notifications/notificationsRoutes';
 import insightsRouter from './routes/insights/insightsRoutes';
 import recoverPasswordRouter from './routes/recoverPassword/recoverPasswordRoutes';
+import deviceRouter from './routes/arduino/device/deviceRoutes';
 
 // ===================== DOCS API =====================
 
@@ -31,11 +33,13 @@ import './jobs/alertChecker';
 import './scheduler/reportScheduler';
 import './jobs/tokenCleaner';
 import { startWatchdog } from './services/watchdog/watchdogService';
+import { initWebSocketServer } from './websocket/wsServer';
 
 dotenv.config({ path: ".env" });
 
 
 const app = express();
+const server = http.createServer(app);
 app.use(helmet());
 const prisma = new PrismaClient();
 
@@ -74,6 +78,7 @@ app.use("/api/experiments", experimentsRouter); // Rotas para experimentos
 app.use("/api/comparison", comparisonRouter); // Comparação de dados
 app.use("/api/notifications", notificationsRouter); // Visualização e gerenciamento de notificações
 app.use("/api/insights", insightsRouter); // Geração de Insights com a IA
+app.use("/api/device", deviceRouter); // Manipulação de device
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec)); // Documentação da API
 
@@ -87,7 +92,9 @@ async function startServer() {
         await prisma.$queryRaw`SELECT 1`;
         console.log("✅ Conectado ao banco com sucesso");
 
-        app.listen(PORT, "0.0.0.0", () => {
+        initWebSocketServer(server);
+
+        server.listen(PORT, "0.0.0.0", () => {
             console.log(`🚀 Servidor rodando em ${process.env.BACKEND_URL}`);
             startWatchdog();
         });
