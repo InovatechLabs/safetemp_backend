@@ -7,6 +7,7 @@
 #include "ota.h"
 #include <display.h>
 #include "websocket_client.h"
+#include "offline_buffer.h"
 
 // ======================
 // ESTADO GLOBAL
@@ -34,7 +35,7 @@ void setup() {
     delay(1000);
 
     // Sincroniza o relógio com NTP
-    showStatus("Sincronizando Relogio");
+    showStatus("Sinc. Relogio...");
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
     Serial.println("🕐 Aguardando sincronização NTP...");
     struct tm timeinfo;
@@ -71,18 +72,35 @@ void loop() {
     unsigned long now = millis();
 
     // — Envio periódico de temperatura —
-    if (now - lastTempSend >= TEMP_INTERVAL_MS) {
-        float tempC = readTemperature();
+if (now - lastTempSend >= TEMP_INTERVAL_MS) {
+    float tempC = readTemperature();
 
-        if (tempC == DEVICE_DISCONNECTED_C) {
-            Serial.println("⚠️ Sensor não encontrado ou desconectado!");
+    if (tempC == DEVICE_DISCONNECTED_C) {
+        Serial.println("⚠️ Sensor não encontrado!");
+        updateDisplayTemp(-127.0, false); 
+    } else {
+        Serial.printf("🌡️ Temperatura: %.2f °C\n", tempC);
+
+        if (WiFi.status() == WL_CONNECTED) {
+            bool success = sendTemperature(tempC); 
+            
+            if (success) {
+                updateDisplayTemp(tempC, true);
+                bufferFlush(); 
+            } else {
+                bufferSave(tempC);
+                updateDisplayTemp(tempC, false);
+            }
         } else {
-            Serial.printf("🌡️ Temperatura: %.2f °C\n", tempC);
-            sendTemperature(tempC);
-            updateDisplayTemp(tempC, true);
+            Serial.println("Offline: Salvando no buffer...");
+            bufferSave(tempC);
+               
+            showStatus("Modo Offline"); 
+            delay(1000);
+            updateDisplayTemp(tempC, false);
         }
-
-        lastTempSend = millis(); // atualiza após a operação para compensar o tempo de rede
+    }
+    lastTempSend = millis(); // atualiza após a operação para compensar o tempo de rede
     }
 
     // — Verificação periódica de OTA —

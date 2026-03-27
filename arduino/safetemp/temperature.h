@@ -31,28 +31,27 @@ float readTemperature() {
 //  2. Buscar o secret cadastrado para o chipId
 //  3. Recomputar HMAC-SHA256(secret, body) e comparar com a assinatura
 //  4. Rejeitar com 401 se a assinatura não bater
-void sendTemperature(float tempC) {
-    if (!ensureWiFi()) return;
+bool sendTemperature(float tempC) {
+    if (!ensureWiFi()) return false;
 
     String chipId = getChipId();
+    float tempRounded = round(tempC * 100.0) / 100.0;
 
-    // Monta o payload
+    String payloadToSign = chipId + "|" + String(tempRounded, 2);
+
     String jsonData = "{";
     jsonData += "\"chipId\":\"" + chipId + "\",";
-    jsonData += "\"temp\":" + String(tempC, 2);
+    jsonData += "\"temp\":" + String(tempRounded, 2);
     jsonData += "}";
 
-    // Gera assinatura HMAC-SHA256 do payload com o secret do dispositivo
-    String signature = hmacSHA256(DEVICE_SECRET, chipId);
+    String signature = hmacSHA256(DEVICE_SECRET, payloadToSign);
 
     WiFiClient client;
-    // Use client.setCACert(root_ca_cert) em produção
-    
-
     HTTPClient http;
+
     if (!http.begin(client, ENDPOINT_TEMP)) {
-        Serial.println("❌ Não foi possível iniciar HTTPClient para envio de temperatura.");
-        return;
+        Serial.println("❌ Falha ao iniciar HTTPClient.");
+        return false;
     }
 
     http.addHeader("Content-Type", "application/json");
@@ -61,14 +60,27 @@ void sendTemperature(float tempC) {
 
     int httpCode = http.POST(jsonData);
 
-    if (httpCode > 0) {
-        Serial.printf("📤 Temperatura enviada! HTTP %d\n", httpCode);
-        if (httpCode != 200 && httpCode != 201) {
-            Serial.printf("⚠️ Resposta inesperada: %s\n", http.getString().c_str());
-        }
-    } else {
-        Serial.printf("❌ Erro ao enviar temperatura: %d\n", httpCode);
+    if (httpCode == 201) {
+        Serial.println("✅ Temperatura enviada com sucesso (201).");
+        http.end();
+        return true;
+    }
+    if (httpCode == 400) {
+        Serial.printf("⚠️ Bad Request (400): %s\n", http.getString().c_str());
+    } else if (httpCode == 401) {
+        Serial.println("🔒 Não autorizado (401) — falha na autenticação.");
+    } else if (httpCode == 500) {
+        Serial.println("💥 Erro interno do servidor (500).");
+    }
+    else if (httpCode <= 0) {
+        Serial.printf("❌ Erro de conexão HTTP: %d\n", httpCode);
+    }
+    else {
+        Serial.printf("⚠️ Status inesperado (%d): %s\n",
+                      httpCode,
+                      http.getString().c_str());
     }
 
     http.end();
+    return false;
 }

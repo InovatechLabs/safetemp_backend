@@ -44,7 +44,7 @@ void updateDisplayTemp(float tempC, bool sentOk) {
     // Linha 1: Mostra o status do envio
     lcd.setCursor(0, 1);
     if (sentOk) {
-        lcd.print("Enviado OK!");
+        lcd.print("Envio OK!");
     } else {
         lcd.print("Erro no Envio!");
     }
