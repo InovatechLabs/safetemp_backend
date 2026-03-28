@@ -37,3 +37,16 @@ export const groqAILimiter = rateLimit({
         message: 'Muitas solicitações de chamada de IA. Aguarde um momento.'
     }
 });
+
+export const deviceCommandLimiter = rateLimit({
+    windowMs: 2000,
+    max: 1,
+    keyGenerator: (req) => req.params.chipId,
+    handler: (req, res) => {
+        return res.status(429).json({
+            message: "O hardware está processando outro comando. Aguarde 2 segundos."
+        });
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
