@@ -45,6 +45,7 @@ model Device {
   mac_address String @unique
   deviceSecret String
   experimentos Experimento[]
+  systemLogs   SystemLog[]
 }
 
 model Alerts {
@@ -115,4 +116,14 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  chipId    String
+  level     String   // "INFO", "WARN", "ERROR"
+  message   String
+  timestamp DateTime @default(now())
+
+  device    Device   @relation(fields: [chipId], references: [mac_address])
 }

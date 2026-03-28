@@ -4,9 +4,13 @@ import { Server } from 'http';
 import { PrismaClient } from '@prisma/client';
 import { createHmac } from 'crypto';
 import { enviarNotificacaoOffline, enviarNotificacaoOnline } from '../services/watchdog/watchdogService';
+import EventEmitter from 'events';
+
 
 const prisma = new PrismaClient();
 const deviceClients = new Map<string, WebSocket>();
+
+export const logEvents = new EventEmitter();
 
 // Controla quais dispositivos já tiveram alerta enviado
 // para não disparar múltiplas notificações
@@ -131,6 +135,16 @@ async function handleDeviceMessage(ws: WebSocket, chipId: string, raw: string) {
 
     } else if (msg.type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong' }));
+    } else if (msg.type === 'system_log') {
+
+      const { level, message } = msg;
+
+      const logData = { chipId, level, message, timestamp: new Date() };
+      if (level === 'WARN' || level === 'ERROR') {
+        await prisma.systemLog.create({ data: { chipId, level, message } });
+      }
+
+      logEvents.emit('new_log', logData);
     }
 
   } catch {

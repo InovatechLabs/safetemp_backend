@@ -66,11 +66,11 @@ bool sendTemperature(float tempC) {
         return true;
     }
     if (httpCode == 400) {
-        Serial.printf("⚠️ Bad Request (400): %s\n", http.getString().c_str());
+        Serial.printf("Bad Request (400): %s\n", http.getString().c_str());
     } else if (httpCode == 401) {
-        Serial.println("🔒 Não autorizado (401) — falha na autenticação.");
+        Serial.println("Não autorizado (401) — falha na autenticação.");
     } else if (httpCode == 500) {
-        Serial.println("💥 Erro interno do servidor (500).");
+        Serial.println("Erro interno do servidor (500).");
     }
     else if (httpCode <= 0) {
         Serial.printf("❌ Erro de conexão HTTP: %d\n", httpCode);

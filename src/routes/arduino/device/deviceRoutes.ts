@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { sendCommand, listConnectedDevices } from "../../../controllers/arduino/device/deviceController";
-import { authenticate } from "../../../middlewares/auth";
+import { apiLimiter } from "../../../middlewares/rateLimiter";
 
 const deviceRouter = Router();
 
-deviceRouter.get('/connected', authenticate, listConnectedDevices);
-deviceRouter.post('/:chipId/command', authenticate, sendCommand);
+deviceRouter.get('/connected', apiLimiter, listConnectedDevices);
+deviceRouter.post('/:chipId/command', apiLimiter, sendCommand);
 
 export default deviceRouter;

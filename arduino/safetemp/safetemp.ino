@@ -78,8 +78,10 @@ if (now - lastTempSend >= TEMP_INTERVAL_MS) {
     if (tempC == DEVICE_DISCONNECTED_C) {
         Serial.println("⚠️ Sensor não encontrado!");
         updateDisplayTemp(-127.0, false); 
+        remoteLog("ERROR", "Sensor de temperatura desconectado.");
     } else {
         Serial.printf("🌡️ Temperatura: %.2f °C\n", tempC);
+        remoteLog("INFO", "Leitura realizada com sucesso.");
 
         if (WiFi.status() == WL_CONNECTED) {
             bool success = sendTemperature(tempC); 
