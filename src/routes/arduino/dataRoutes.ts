@@ -34,7 +34,12 @@ dataRouter.get('/system-logs/stream', (req, res) => {
   
   logEvents.on('new_log', sendLog);
 
+  const sseHeartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n'); 
+  }, 30000);
+
   req.on('close', () => {
+    clearInterval(sseHeartbeat);
     logEvents.off('new_log', sendLog);
     res.end(); 
   });

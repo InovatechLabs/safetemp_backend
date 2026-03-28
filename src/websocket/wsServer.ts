@@ -18,11 +18,16 @@ const alertasEnviados = new Set<string>();
 
 export function initWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
+  const CHIP_ID_REGEX = /^[A-F0-9]{12}$/;
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    const url    = new URL(req.url!, `http://${req.headers.host}`);
+    const url = new URL(req.url!, `http://${req.headers.host}`);
     const chipId = url.searchParams.get('chipId');
-    const sig    = url.searchParams.get('signature');
+    if (!chipId || !CHIP_ID_REGEX.test(chipId)) {
+      ws.close(1008, 'chipId inválido.');
+      return;
+    }
+    const sig = url.searchParams.get('signature');
 
     handleDeviceConnection(ws, chipId, sig);
   });
@@ -43,7 +48,7 @@ async function handleDeviceConnection(
 
   const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
 
-  if (!device || !device.deviceSecret) {
+  if (!device || !device.deviceSecret || device.deviceSecret.length == 0) {
     ws.close(1008, 'Dispositivo não reconhecido.');
     return;
   }

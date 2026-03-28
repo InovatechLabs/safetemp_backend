@@ -35,7 +35,7 @@ void setup() {
     delay(1000);
 
     // Sincroniza o relógio com NTP
-    showStatus("Sinc. Relogio...");
+    showStatus("Sync. Relogio...");
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
     Serial.println("🕐 Aguardando sincronização NTP...");
     struct tm timeinfo;
@@ -72,37 +72,42 @@ void loop() {
     unsigned long now = millis();
 
     // — Envio periódico de temperatura —
-if (now - lastTempSend >= TEMP_INTERVAL_MS) {
-    float tempC = readTemperature();
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        
+        static int lastMinute = -1;
+        if (timeinfo.tm_min != lastMinute) {
+            lastMinute = timeinfo.tm_min; 
 
-    if (tempC == DEVICE_DISCONNECTED_C) {
-        Serial.println("⚠️ Sensor não encontrado!");
-        updateDisplayTemp(-127.0, false); 
-        remoteLog("ERROR", "Sensor de temperatura desconectado.");
-    } else {
-        Serial.printf("🌡️ Temperatura: %.2f °C\n", tempC);
-        remoteLog("INFO", "Leitura realizada com sucesso.");
+            float tempC = readTemperature();
 
-        if (WiFi.status() == WL_CONNECTED) {
-            bool success = sendTemperature(tempC); 
-            
-            if (success) {
-                updateDisplayTemp(tempC, true);
-                bufferFlush(); 
+            if (tempC == DEVICE_DISCONNECTED_C) {
+                Serial.println("⚠️ Sensor não encontrado!");
+                updateDisplayTemp(-127.0, false); 
+                remoteLog("ERROR", "Sensor de temperatura desconectado.");
             } else {
-                bufferSave(tempC);
-                updateDisplayTemp(tempC, false);
+                Serial.printf("🌡️ [%02d:%02d:00] Temperatura: %.2f °C\n", 
+                              timeinfo.tm_hour, timeinfo.tm_min, tempC);
+                
+                remoteLog("INFO", "Leitura agendada realizada.");
+
+                if (WiFi.status() == WL_CONNECTED) {
+                    bool success = sendTemperature(tempC); 
+                    if (success) {
+                        updateDisplayTemp(tempC, true);
+                        bufferFlush(); 
+                    } else {
+                        bufferSave(tempC);
+                        updateDisplayTemp(tempC, false);
+                    }
+                } else {
+                    Serial.println("Offline: Salvando no buffer...");
+                    bufferSave(tempC);
+                    showStatus("Modo Offline"); 
+                    updateDisplayTemp(tempC, false);
+                }
             }
-        } else {
-            Serial.println("Offline: Salvando no buffer...");
-            bufferSave(tempC);
-               
-            showStatus("Modo Offline"); 
-            delay(1000);
-            updateDisplayTemp(tempC, false);
         }
-    }
-    lastTempSend = millis(); // atualiza após a operação para compensar o tempo de rede
     }
 
     // — Verificação periódica de OTA —
