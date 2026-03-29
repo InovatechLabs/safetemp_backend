@@ -108,9 +108,7 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
   const { token2FA } = req.body;
   const isWeb = req.headers['x-platform'] === 'web';
 
-    const tempToken = isWeb 
-    ? req.cookies?.tempToken 
-    : req.body.tempToken;
+  const tempToken = req.body.tempToken || req.cookies?.tempToken;
 
   if (!tempToken) {
     return res.status(401).json({ message: 'Sessão expirada. Faça login novamente.' });

@@ -97,7 +97,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
                 if (isWeb) {
                     res.cookie('tempToken', tempToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-                    return res.status(206).json({ message: '2FA necessário', requires2FA: true });
+                    return res.status(206).json({ message: '2FA necessário', requires2FA: true, tempToken });
                 }
 
                 return res.status(206).json({
