@@ -135,8 +135,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
         if (isWeb) {
             res.cookie('token', accessToken, cookieOptions);
             res.cookie('refreshToken', refreshToken, refreshCookieOptions);
-            res.clearCookie('tempToken');
-            return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
+            return res.status(200).json({ success: true, user: { id: user.id, name: user.name }, accessToken });
         }
         return res.status(200).json({
             success: true,
