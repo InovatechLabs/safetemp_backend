@@ -147,7 +147,7 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
       res.cookie('token', accessToken, cookieOptions);
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       res.clearCookie('tempToken', clearTempCookieOptions);
-      return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
+      return res.status(200).json({ success: true, user: { id: user.id, name: user.name }, accessToken });
     }
 
     return res.status(200).json({

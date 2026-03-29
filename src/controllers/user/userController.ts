@@ -271,7 +271,7 @@ export const refresh = async (req: Request, res: Response) => {
     res.cookie('token', newAccessToken, cookieOptions);
     res.cookie('refreshToken', newRefreshToken, refreshCookieOptions);
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (error) {
     console.error('Erro ao renovar token:', error);
     return res.status(500).json({ message: 'Erro interno do servidor.' });
