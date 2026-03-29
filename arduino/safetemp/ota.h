@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include "config.h"
 #include "wifi_manager.h"
+#include <WiFiClientSecure.h>
 
 // ======================
 // OTA 
@@ -35,7 +36,8 @@ bool isNewerVersion(const char* current, const char* latest) {
 
 // Baixa e instala o firmware. Valida SHA256 antes de confirmar a instalação.
 void performOTA(const char* firmwareUrl, const char* latestVersion, const char* expectedHash) {
-    WiFiClient client;
+    WiFiClientSecure client;
+    client.setInsecure();
     // IMPORTANTE: substitua setInsecure() pelo certificado raiz do seu servidor
     // para evitar ataques man-in-the-middle durante o download do firmware.
     // Exemplo: client.setCACert(root_ca_cert);
@@ -106,8 +108,9 @@ void performOTA(const char* firmwareUrl, const char* latestVersion, const char* 
 void checkForFirmwareUpdate() {
     if (!ensureWiFi()) return;
 
-    WiFiClient client;
-    // client.setInsecure(); // idem ao comentário acima — use setCACert() em produção
+    WiFiClientSecure client;
+    client.setInsecure();
+   
     HTTPClient http;
 
     if (!http.begin(client, ENDPOINT_OTA_VERSION)) {

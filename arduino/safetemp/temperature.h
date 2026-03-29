@@ -5,6 +5,7 @@
 #include "config.h"
 #include "wifi_manager.h"
 #include "auth.h"
+#include <WiFiClientSecure.h>
 
 // ======================
 // SENSOR E ENVIO DE TEMPERATURA
@@ -46,7 +47,9 @@ bool sendTemperature(float tempC) {
 
     String signature = hmacSHA256(DEVICE_SECRET, payloadToSign);
 
-    WiFiClient client;
+    WiFiClientSecure client;
+    client.setInsecure();
+
     HTTPClient http;
 
     if (!http.begin(client, ENDPOINT_TEMP)) {
@@ -73,7 +76,7 @@ bool sendTemperature(float tempC) {
         Serial.println("Erro interno do servidor (500).");
     }
     else if (httpCode <= 0) {
-        Serial.printf("❌ Erro de conexão HTTP: %d\n", httpCode);
+        Serial.printf("❌ Erro de conexão SSL/HTTPS: %s\n", http.errorToString(httpCode).c_str());
     }
     else {
         Serial.printf("⚠️ Status inesperado (%d): %s\n",

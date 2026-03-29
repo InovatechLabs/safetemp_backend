@@ -27,6 +27,12 @@ export const refreshCookieOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
+export const clearTempCookieOptions = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' as const : 'lax' as const,
+};
+
 export const register = async (req: AuthenticatedRequest, res: Response) => {
 
     const { name, email, password } = req.body;

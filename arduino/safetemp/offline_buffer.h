@@ -6,6 +6,7 @@
 #include "config.h"
 #include "auth.h"
 #include "wifi_manager.h"
+#include <WiFiClientSecure.h>
 
 #define OFFLINE_MAX_RECORDS 1440
 #define BATCH_SIZE 50
@@ -140,7 +141,9 @@ void bufferFlush() {
         serializeJson(doc, payload);
         String signature = hmacSHA256(DEVICE_SECRET, payloadToSign);
 
-        WiFiClient client;
+        WiFiClientSecure client;
+        client.setInsecure();
+
         HTTPClient http;
 
         if (!http.begin(client, ENDPOINT_BATCH)) {
