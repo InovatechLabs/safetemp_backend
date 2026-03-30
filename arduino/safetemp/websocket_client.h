@@ -10,6 +10,7 @@
 WebSocketsClient wsClient;
 
 bool wsConnected = false;
+bool pendingFlush = false;
 
 String chipId   = getChipId();
 
@@ -29,12 +30,15 @@ void remoteLog(String level, String message) {
 
 // Callback chamado em todo evento WebSocket
 void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
+
   switch (type) {
 
     case WStype_CONNECTED:
       wsConnected = true;
       Serial.println("WebSocket conectado ao backend!");
       remoteLog("INFO", "Conexão estabelecida");
+      delay(500);
+      pendingFlush = true;
       break;
 
     case WStype_DISCONNECTED:

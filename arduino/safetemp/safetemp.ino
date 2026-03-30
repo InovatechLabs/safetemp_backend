@@ -18,11 +18,16 @@ String firmwareVersion;
 unsigned long lastTempSend   = 0;
 unsigned long lastUpdateCheck = 0;
 
+extern bool pendingFlush;
+
 // ======================
 // SETUP
 // ======================
 void setup() {
     Serial.begin(115200);
+    delay(100);
+    esp_reset_reason_t reason = esp_reset_reason();
+    Serial.printf("🔁 Motivo do reinício: %d\n", reason);
 
     initDisplay();
 
@@ -95,7 +100,6 @@ void loop() {
                     bool success = sendTemperature(tempC); 
                     if (success) {
                         updateDisplayTemp(tempC, true);
-                        bufferFlush(); 
                     } else {
                         bufferSave(tempC);
                         updateDisplayTemp(tempC, false);
@@ -109,6 +113,11 @@ void loop() {
             }
         }
     }
+
+    if (pendingFlush && WiFi.status() == WL_CONNECTED) {
+    pendingFlush = false;
+    bufferFlush();
+}
 
     // — Verificação periódica de OTA —
     if (now - lastUpdateCheck >= UPDATE_INTERVAL_MS) {
