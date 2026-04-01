@@ -20,7 +20,10 @@ const ESP_COMMAND_WHITELIST = [
   'wifi_scan', 
   'mem_map', 
   'chip_info',
-  'force_flush'
+  'force_flush',
+  'stack',
+  'voltage',
+  'net_info'
 ];
 
 export const sendCommand = async (req: Request, res: Response) => {
@@ -79,7 +82,7 @@ export const sendCommand = async (req: Request, res: Response) => {
   }
 
   // Envio via WebSocket
-  const sent = sendCommandToDevice(chipId, { type: 'command', command: cleanCommand });
+  const sent = sendCommandToDevice(chipId, { type: 'command', command: cleanCommand, sentAt: cleanCommand === 'ping' ? Date.now() : undefined });
 
   if (!sent) {
     const failMsg = `[SISTEMA] Falha ao rotear '${cleanCommand}': Hardware offline.`;

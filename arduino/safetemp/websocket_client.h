@@ -6,6 +6,9 @@
 #include "offline_buffer.h"
 #include "temperature.h"
 #include <WiFiClientSecure.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_adc_cal.h"
 
 WebSocketsClient wsClient;
 
@@ -83,8 +86,85 @@ void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
           bufferFlush(); 
         }
         else if (strcmp(command, "ping") == 0) {
-          remoteLog("INFO", "Pong!");
-        }
+    unsigned long sentAt = doc["sentAt"] | 0;
+    unsigned long rtt = sentAt > 0 ? (millis() - sentAt) : 0;
+    
+    String msg = "Latência: " + String(rtt) + "ms";
+    remoteLog("INFO", msg);
+}
+else if (strcmp(command, "stack") == 0) {
+    UBaseType_t stackRemaining = uxTaskGetStackHighWaterMark(NULL);
+    
+    String msg = "[STACK] Mínimo restante: " + String(stackRemaining * 4) + " bytes";
+    
+    // alerta se estiver abaixo de 1KB — risco de stack overflow
+    if (stackRemaining * 4 < 1024) {
+        msg += " ⚠️ CRITICO: risco de stack overflow!";
+        remoteLog("WARN", msg);
+    } else {
+        remoteLog("INFO", msg);
+    }
+}
+else if (strcmp(command, "net_info") == 0) {
+    String ip = WiFi.localIP().toString();
+    String gateway = WiFi.gatewayIP().toString();
+    String subnet = WiFi.subnetMask().toString();
+    String dns = WiFi.dnsIP().toString();
+    int rssi = WiFi.RSSI();
+    int channel = WiFi.channel();
+    String bssid = WiFi.BSSIDstr();
+    String ssid = WiFi.SSID();
+
+    String signalQuality;
+    if (rssi >= -50) signalQuality = "Excelente";
+    else if (rssi >= -60) signalQuality = "Bom";
+    else if (rssi >= -70) signalQuality = "Regular";
+    else signalQuality = "Fraco";
+
+    String msg = "[NET] SSID: " + ssid +
+                 " | IP: " + ip +
+                 " | Gateway: " + gateway +
+                 " | Máscara: " + subnet +
+                 " | DNS: " + dns +
+                 " | Canal: " + String(channel) +
+                 " | BSSID: " + bssid +
+                 " | RSSI: " + String(rssi) + "dBm (" + signalQuality + ")";
+
+    remoteLog("INFO", msg);
+}
+
+else if (strcmp(command, "voltage") == 0) {
+    // Lê a tensão interna de referência do ESP32
+    // esp_read_efuse_vref retorna a tensão de referência calibrada em mV
+    uint32_t vref = 1100; // valor padrão se não houver calibração
+
+    analogSetAttenuation(ADC_11db); // range 0-3.3V
+    int raw = analogRead(34);
+    
+    float voltage = (raw / 4095.0) * 3300.0;
+
+    esp_adc_cal_characteristics_t chars;
+    esp_adc_cal_value_t cal = esp_adc_cal_characterize(
+        ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, vref, &chars
+    );
+    
+    uint32_t voltage_mv = esp_adc_cal_raw_to_voltage(raw, &chars);
+    
+    String calType = (cal == ESP_ADC_CAL_VAL_EFUSE_VREF) ? "eFuse" : 
+                     (cal == ESP_ADC_CAL_VAL_EFUSE_TP) ? "Two Point" : "Default";
+
+    String msg = "[POWER] ADC raw: " + String(raw) + 
+                 " | Tensão: " + String(voltage_mv) + "mV" +
+                 " | Calibração: " + calType;
+
+    // Alerta se tensão abaixo de 2800mV — brownout iminente
+    if (voltage_mv < 2800) {
+        msg += " ⚠️ TENSÃO BAIXA!";
+        remoteLog("WARN", msg);
+    } else {
+        remoteLog("INFO", msg);
+    }
+}
         else if (strcmp(command, "mem_map") == 0) {
           size_t freeHeap = ESP.getFreeHeap() / 1024;
           size_t minFreeHeap = ESP.getMinFreeHeap() / 1024; // Menor valor de RAM livre desde o boot
