@@ -198,6 +198,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
         id: true,
         name: true,
         is2FAEnabled: true, 
+        webPushToken: true, 
       }
     });
 
@@ -205,7 +206,15 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ message: "Usuário não encontrado." });
     }
 
-    return res.status(200).json(user);
+    const responseData = {
+      id: user.id,
+      name: user.name,
+      is2FAEnabled: user.is2FAEnabled,
+      hasWebPush: user.webPushToken !== null, 
+    };
+
+    // 4. Retornamos o objeto limpo
+    return res.status(200).json(responseData);
   } catch (error) {
     console.error("Erro na rota /me:", error);
     return res.status(500).json({ message: "Erro interno do servidor" });

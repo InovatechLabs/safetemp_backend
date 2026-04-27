@@ -4,11 +4,41 @@ import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import { Expo } from 'expo-server-sdk';
 import { fromZonedTime, toZonedTime, format } from 'date-fns-tz';
+import webpush from 'web-push';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
 const expo = new Expo();
+
+webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+);
+
+export const saveWebPushToken = async (req: AuthenticatedRequest, res: Response) => {
+    try {       
+        const { webPushSubscription } = req.body;
+
+        if (!webPushSubscription) {
+            return res.status(400).json({ message: 'A inscrição (subscription) é obrigatória' });
+        }
+        if (!req.user || !req.user.id) return res.status(401).json({ message: "Usuário não autenticado" });
+        
+        const userId = req.user.id;
+    
+        await prisma.user.update({
+            where: { id: userId },
+            data: { webPushToken: webPushSubscription },
+        });
+        
+        return res.status(200).json({ message: 'Token Web Push salvo com sucesso!' });
+    } catch (err) {
+        console.error("Falha ao salvar webPushToken:", err);
+        return res.status(500).json({ message: 'Erro ao salvar token de push web'});
+    }
+};
 
 export const registerAlert = async (req: AuthenticatedRequest, res: Response) => {
 

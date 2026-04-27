@@ -33,6 +33,7 @@ model User {
   twoFASecret       String?
   backupCode        String?
   expoPushToken     String?
+  webPushToken      Json?
   alerts            Alerts[]
   notifications     Notification[]
   experimentos Experimento[]
