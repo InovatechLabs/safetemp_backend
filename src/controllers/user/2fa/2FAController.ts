@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { AuthenticatedRequest } from '../../../middlewares/auth';
 import generateBackupCode from '../../../utils/functions/generateBackupCode';
 import jwt from 'jsonwebtoken';
-import { cookieOptions, refreshCookieOptions } from '../userController';
+import { clearTempCookieOptions, cookieOptions, refreshCookieOptions } from '../userController';
 import { hashToken } from '../../../utils/functions/auth/hashToken';
 
 
@@ -108,7 +108,8 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
   const { token2FA } = req.body;
   const isWeb = req.headers['x-platform'] === 'web';
 
-  const tempToken = req.cookies?.tempToken || req.body.tempToken;
+  const tempToken = req.body.tempToken || req.cookies?.tempToken;
+
   if (!tempToken) {
     return res.status(401).json({ message: 'Sessão expirada. Faça login novamente.' });
   }
@@ -145,8 +146,8 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
     if (isWeb) {
       res.cookie('token', accessToken, cookieOptions);
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
-      res.clearCookie('tempToken');
-      return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
+      res.clearCookie('tempToken', clearTempCookieOptions);
+      return res.status(200).json({ success: true, user: { id: user.id, name: user.name }, accessToken });
     }
 
     return res.status(200).json({
@@ -155,7 +156,13 @@ export const verifyLoginCode = async (req: AuthenticatedRequest, res: Response) 
       refreshToken,
     });
 
-  } catch (error) {
+   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: 'Sessão expirada. Faça login novamente.' });
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ message: 'Token inválido.' });
+    }
     console.error("Erro ao verificar código 2FA:", error);
     return res.status(500).json({ message: 'Erro interno do servidor' });
   }

@@ -27,6 +27,12 @@ export const refreshCookieOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
+export const clearTempCookieOptions = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' as const : 'lax' as const,
+};
+
 export const register = async (req: AuthenticatedRequest, res: Response) => {
 
     const { name, email, password } = req.body;
@@ -91,7 +97,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
 
                 if (isWeb) {
                     res.cookie('tempToken', tempToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-                    return res.status(206).json({ message: '2FA necessário', requires2FA: true });
+                    return res.status(206).json({ message: '2FA necessário', requires2FA: true, tempToken });
                 }
 
                 return res.status(206).json({
@@ -129,8 +135,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
         if (isWeb) {
             res.cookie('token', accessToken, cookieOptions);
             res.cookie('refreshToken', refreshToken, refreshCookieOptions);
-            res.clearCookie('tempToken');
-            return res.status(200).json({ success: true, user: { id: user.id, name: user.name } });
+            return res.status(200).json({ success: true, user: { id: user.id, name: user.name }, accessToken });
         }
         return res.status(200).json({
             success: true,
@@ -193,6 +198,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
         id: true,
         name: true,
         is2FAEnabled: true, 
+        webPushToken: true, 
       }
     });
 
@@ -200,7 +206,15 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ message: "Usuário não encontrado." });
     }
 
-    return res.status(200).json(user);
+    const responseData = {
+      id: user.id,
+      name: user.name,
+      is2FAEnabled: user.is2FAEnabled,
+      hasWebPush: user.webPushToken !== null, 
+    };
+
+    // 4. Retornamos o objeto limpo
+    return res.status(200).json(responseData);
   } catch (error) {
     console.error("Erro na rota /me:", error);
     return res.status(500).json({ message: "Erro interno do servidor" });
@@ -265,7 +279,7 @@ export const refresh = async (req: Request, res: Response) => {
     res.cookie('token', newAccessToken, cookieOptions);
     res.cookie('refreshToken', newRefreshToken, refreshCookieOptions);
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (error) {
     console.error('Erro ao renovar token:', error);
     return res.status(500).json({ message: 'Erro interno do servidor.' });

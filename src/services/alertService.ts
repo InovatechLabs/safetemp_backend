@@ -1,5 +1,6 @@
 import { Expo } from 'expo-server-sdk';
 import { PrismaClient } from '@prisma/client';
+import { sendWebPushAlert } from './webPushService';
 
 const prisma = new PrismaClient();
 const expo = new Expo();
@@ -45,6 +46,7 @@ export const verificarAlertas = async () => {
     let messages = [];
     let updates = [];
     let notificationsToCreate = [];
+    let webPushPromises = [];
 
 for (const alerta of alertas) {
     const token = alerta.user.expoPushToken;
@@ -59,6 +61,9 @@ for (const alerta of alertas) {
         if (token && Expo.isExpoPushToken(token)) {
           messages.push({ to: token, sound: 'default', title, body });
         }
+        webPushPromises.push(
+            sendWebPushAlert(alerta.user_id, title, body, '/dashboard')
+          );
 
         notificationsToCreate.push({
           user_id: alerta.user_id,
@@ -81,6 +86,9 @@ for (const alerta of alertas) {
         if (token && Expo.isExpoPushToken(token)) {
           messages.push({ to: token, sound: null, title, body });
         }
+        webPushPromises.push(
+            sendWebPushAlert(alerta.user_id, title, body, '/dashboard')
+          );
 
         notificationsToCreate.push({
           user_id: alerta.user_id,
@@ -105,6 +113,16 @@ for (const alerta of alertas) {
         console.log('Notificações enviadas com sucesso.');
       } catch (error) {
         console.error('Erro ao enviar notificações em lote:', error);
+      }
+    }
+    
+    if (webPushPromises.length > 0) {
+      console.log(`Enviando ${webPushPromises.length} notificações Web Push...`);
+      try {
+        await Promise.all(webPushPromises);
+        console.log('Notificações Web Push resolvidas.');
+      } catch (error) {
+        console.error('Erro ao processar lote de Web Push:', error);
       }
     }
 
