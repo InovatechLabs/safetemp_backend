@@ -1,11 +1,10 @@
 #pragma once
 
 // ======================
-// WI-FI
+// CONFIGURAÇÕES DO PORTAL CATIVO (AP)
 // ======================
-#define WIFI_SSID        "wifi_ssid"
-#define WIFI_PASSWORD    "wifi_password"
-#define WIFI_MAX_RETRIES 20
+#define AP_SSID_PREFIX   "SafeTemp_Setup_"
+#define CAPTIVE_PORTAL_IP IPAddress(192, 168, 4, 1)
 
 // ======================
 // NTP
@@ -17,18 +16,11 @@
 // ======================
 // ENDPOINTS DA API
 // ======================
-#define API_BASE_URL         "https://safetemp-api.onrender.com/api/"
+#define API_BASE_URL         "http://192.168.15.10:3000/api/"
 #define ENDPOINT_TEMP        API_BASE_URL "data/registertemp"
 #define ENDPOINT_OTA_VERSION API_BASE_URL "firmware/version"
 #define ENDPOINT_BATCH       API_BASE_URL "data/registertemp/batch"
-
-// ======================
-// AUTENTICAÇÃO
-// ======================
-// Chave secreta compartilhada entre o dispositivo e o backend.
-// Gerada no backend no momento do cadastro do dispositivo e gravada
-// aqui antes do flash. Nunca exponha este valor publicamente.
-#define DEVICE_SECRET "device_secret"
+#define ENDPOINT_PROVISION   API_BASE_URL "device/activate"
 
 // ======================
 // PINOS

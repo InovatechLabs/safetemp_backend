@@ -22,25 +22,34 @@ export const verificarAlertas = async () => {
     const now = new Date();
 
 
-    const alertas = await prisma.alerts.findMany({
+   const greenhousesComAlertas = await prisma.greenhouse.findMany({
       where: {
-        ativo: true,
-
-
-        OR: [
-          { hora_inicio: null, hora_fim: null },
-          {
-            hora_inicio: { lte: now },
-            hora_fim: { gte: now }
+        alerts: {
+          some: {
+            ativo: true,
+            OR: [
+              { hora_inicio: null, hora_fim: null },
+              { hora_inicio: { lte: now }, hora_fim: { gte: now } }
+            ]
           }
-        ]
+        }
       },
-      include: { user: true },
+      include: {
+        alerts: {
+          where: {
+            ativo: true,
+            OR: [
+              { hora_inicio: null, hora_fim: null },
+              { hora_inicio: { lte: now }, hora_fim: { gte: now } }
+            ]
+          },
+          include: { user: true }
+        }
+      }
     });
 
-    if (alertas.length === 0) {
-      console.log('Nenhum alerta ativo.');
-      return;
+    if (greenhousesComAlertas.length === 0) {
+      return; 
     }
 
     let messages = [];
@@ -48,105 +57,97 @@ export const verificarAlertas = async () => {
     let notificationsToCreate = [];
     let webPushPromises = [];
 
-for (const alerta of alertas) {
-    const token = alerta.user.expoPushToken;
-    const tempForaDoLimite = (alerta.temperatura_min && temperaturaAtual < alerta.temperatura_min) ||
-                             (alerta.temperatura_max && temperaturaAtual > alerta.temperatura_max);
+for (const greenhouse of greenhousesComAlertas) {
 
-    if (tempForaDoLimite) {
-      if (alerta.notificacaoAtiva === false) {
-        const title = '⚠️ Alerta de Temperatura';
-        const body = `A temperatura atual é ${temperaturaAtual.toFixed(2)}°C — fora do limite configurado.`;
+      const lastRecord = await prisma.temperatura.findFirst({
+        where: { device: { greenhouseId: greenhouse.id } },
+        orderBy: { timestamp: 'desc' },
+      });
 
-        if (token && Expo.isExpoPushToken(token)) {
-          messages.push({ to: token, sound: 'default', title, body });
+      if (!lastRecord) continue; 
+
+      const temperaturaAtual = lastRecord.value;
+
+      for (const alerta of greenhouse.alerts) {
+        const token = alerta.user.expoPushToken;
+        const tempForaDoLimite = (alerta.temperatura_min !== null && temperaturaAtual < alerta.temperatura_min) ||
+                                 (alerta.temperatura_max !== null && temperaturaAtual > alerta.temperatura_max);
+
+        if (tempForaDoLimite) {
+          if (alerta.notificacaoAtiva === false) {
+            const title = `⚠️ Alerta: ${greenhouse.name}`;
+            const body = `A temperatura atual é ${temperaturaAtual.toFixed(2)}°C — fora do limite configurado.`;
+
+            if (token && Expo.isExpoPushToken(token)) {
+              messages.push({ to: token, sound: 'default', title, body });
+            }
+            
+            const targetUserId = (alerta as any).user_id || (alerta as any).userId;
+
+            webPushPromises.push(sendWebPushAlert(targetUserId, title, body, '/dashboard'));
+
+            notificationsToCreate.push({
+              userId: targetUserId,
+              alertId: alerta.id,
+              title: title,
+              content: body,
+              read: false
+            });
+
+            updates.push(prisma.alerts.update({
+              where: { id: alerta.id },
+              data: { notificacaoAtiva: true }
+            }));
+          }
+        } else {
+          if (alerta.notificacaoAtiva === true) {
+            const title = `✅ Normalizado: ${greenhouse.name}`;
+            const body = `A temperatura agora é ${temperaturaAtual.toFixed(2)}°C e está dentro dos limites.`;
+
+            if (token && Expo.isExpoPushToken(token)) {
+              messages.push({ to: token, sound: 'default', title, body });
+            }
+            
+            const targetUserId = (alerta as any).user_id || (alerta as any).userId;
+
+            webPushPromises.push(sendWebPushAlert(targetUserId, title, body, '/dashboard'));
+
+            notificationsToCreate.push({
+              userId: targetUserId,
+              alertId: alerta.id,
+              title: title,
+              content: body,
+              read: false
+            });
+
+            updates.push(prisma.alerts.update({
+              where: { id: alerta.id },
+              data: { notificacaoAtiva: false }
+            }));
+          }
         }
-        webPushPromises.push(
-            sendWebPushAlert(alerta.user_id, title, body, '/dashboard')
-          );
-
-        notificationsToCreate.push({
-          user_id: alerta.user_id,
-          alert_id: alerta.id,
-          title: title,
-          content: body,
-          read: false
-        });
-
-        updates.push(prisma.alerts.update({
-          where: { id: alerta.id },
-          data: { notificacaoAtiva: true }
-        }));
-      }
-    } else {
-      if (alerta.notificacaoAtiva === true) {
-        const title = '✅ Temperatura Normalizada';
-        const body = `A temperatura agora é ${temperaturaAtual.toFixed(2)}°C e está dentro dos limites.`;
-
-        if (token && Expo.isExpoPushToken(token)) {
-          messages.push({ to: token, sound: null, title, body });
-        }
-        webPushPromises.push(
-            sendWebPushAlert(alerta.user_id, title, body, '/dashboard')
-          );
-
-        notificationsToCreate.push({
-          user_id: alerta.user_id,
-          alert_id: alerta.id,
-          title: title,
-          content: body,
-          read: false
-        });
-
-        updates.push(prisma.alerts.update({
-          where: { id: alerta.id },
-          data: { notificacaoAtiva: false }
-        }));
       }
     }
-  }
 
     if (messages.length > 0) {
-      console.log(`Enviando ${messages.length} notificações em lote...`);
-      try {
-        await expo.sendPushNotificationsAsync(messages);
-        console.log('Notificações enviadas com sucesso.');
-      } catch (error) {
-        console.error('Erro ao enviar notificações em lote:', error);
-      }
+      try { await expo.sendPushNotificationsAsync(messages); } 
+      catch (error) { console.error('Erro Push:', error); }
     }
     
     if (webPushPromises.length > 0) {
-      console.log(`Enviando ${webPushPromises.length} notificações Web Push...`);
-      try {
-        await Promise.all(webPushPromises);
-        console.log('Notificações Web Push resolvidas.');
-      } catch (error) {
-        console.error('Erro ao processar lote de Web Push:', error);
-      }
+      try { await Promise.all(webPushPromises); } 
+      catch (error) { console.error('Erro WebPush:', error); }
     }
 
-
     if (updates.length > 0) {
-      console.log(`Atualizando ${updates.length} status de alertas no DB...`);
-      try {
-        await Promise.all(updates);
-        console.log('Status dos alertas atualizados no DB.');
-      } catch (error) {
-        console.error('Erro ao atualizar status dos alertas:', error);
-      }
+      try { await Promise.all(updates); } 
+      catch (error) { console.error('Erro DB Alertas:', error); }
     }
 
     if (notificationsToCreate.length > 0) {
-    try {
-      console.log(`Registrando ${notificationsToCreate.length} notificações no histórico...`);
-      await prisma.notification.createMany({
-        data: notificationsToCreate
-      });
-    } catch (error) {
-      console.error('Erro ao salvar histórico de notificações:', error);
+      try { await prisma.notification.createMany({ data: notificationsToCreate }); } 
+      catch (error) { console.error('Erro Histórico:', error); }
     }
-  }
 
   } catch (error) {
     console.error('Erro fatal ao verificar alertas:', error);

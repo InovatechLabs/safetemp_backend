@@ -10,15 +10,15 @@ export const ExperimentoController = {
 
   async iniciar(req: AuthenticatedRequest, res: Response) {
 
-    const { nome, objetivo, temp_min_ideal, temp_max_ideal, deviceId, data_fim } = req.body;
+    const { nome, objetivo, temp_min_ideal, temp_max_ideal, greenhouseId, data_fim } = req.body;
 
     if(!req.user) return res.status(400).json({ message: 'Usuário não autenticado.' });
     const userId = req.user.id; 
 
     try {
  
-      await prisma.experimento.updateMany({
-        where: { deviceId, ativo: true },
+     await prisma.experimento.updateMany({
+        where: { greenhouseId: Number(greenhouseId), ativo: true },
         data: { ativo: false, data_fim: new Date() }
       });
 
@@ -30,7 +30,7 @@ export const ExperimentoController = {
           temp_min_ideal,
           temp_max_ideal,
           userId,
-          deviceId,
+          greenhouseId: Number(greenhouseId),
           data_fim,
           ativo: true
         },
@@ -59,7 +59,7 @@ export const ExperimentoController = {
     const experiment = await prisma.experimento.findFirst({
       where: { id: Number(id), userId: userId, ativo: true },
       include: {
-        dispositivo: true
+        greenhouse: true
       }
     });
 
@@ -67,15 +67,17 @@ export const ExperimentoController = {
 
 
     const records = await prisma.temperatura.findMany({
-      where: {
-        chipId: experiment.dispositivo.mac_address,
-        timestamp: {
-          gte: experiment.data_inicio,
-          lte: new Date()
-        }
-      },
-      orderBy: { timestamp: 'asc' }
-    });
+        where: {
+          device: {
+              greenhouseId: experiment.greenhouseId
+          },
+          timestamp: {
+            gte: experiment.data_inicio,
+            lte: new Date()
+          }
+        },
+        orderBy: { timestamp: 'asc' }
+      });
 
     const report = await generateExperimentReport(experiment, records);
 
@@ -101,32 +103,26 @@ export const ExperimentoController = {
 
 async listarPublicos(req: Request, res: Response) {
   try {
-    const experimentos = await prisma.experimento.findMany({
-      where: {
-        ativo: false 
-      },
-      select: {
-        id: true,
-        nome: true,
-        objetivo: true,
-        data_inicio: true,
-        data_fim: true,
-        relatorio: true,
-        temp_min_ideal: true,
-        temp_max_ideal: true,
-        responsavel: {
-          select: {
-            name: true
+   const experimentos = await prisma.experimento.findMany({
+        where: { ativo: false },
+        select: {
+          id: true,
+          nome: true,
+          objetivo: true,
+          data_inicio: true,
+          data_fim: true,
+          relatorio: true,
+          temp_min_ideal: true,
+          temp_max_ideal: true,
+          responsavel: {
+            select: { name: true }
+          },
+          greenhouse: {
+            select: { name: true }
           }
         },
-        dispositivo: {
-          select: {
-            mac_address: true
-          }
-        }
-      },
-      orderBy: { data_fim: 'desc' }
-    });
+        orderBy: { data_fim: 'desc' }
+      });
 
     return res.json(experimentos);
   } catch (error) {
@@ -192,20 +188,21 @@ async listarExperimentosDeHoje (req: Request, res: Response) {
 async buscarAtivoPorDevice(req: Request, res: Response) {
     const { mac_address } = req.params;
     try {
-      const ativo = await prisma.experimento.findFirst({
-        where: { 
-          dispositivo: { mac_address },
-          ativo: true 
-        },
-        include: {
-            responsavel: {
-                select: {
-                    id: true,
-                    name: true
+     const ativo = await prisma.experimento.findFirst({
+          where: { 
+            greenhouse: {
+                devices: {
+                    some: { mac_address }
                 }
-            }
-        }
-      });
+            },
+            ativo: true 
+          },
+          include: {
+              responsavel: {
+                  select: { id: true, name: true }
+              }
+          }
+        });
       return res.json(ativo);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao buscar experimento." });

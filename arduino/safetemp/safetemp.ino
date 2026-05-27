@@ -5,7 +5,7 @@
 #include "auth.h"
 #include "temperature.h"
 #include "ota.h"
-#include <display.h>
+#include "display.h"
 #include "websocket_client.h"
 #include "offline_buffer.h"
 

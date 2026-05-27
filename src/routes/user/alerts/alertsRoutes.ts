@@ -11,10 +11,11 @@ import {
 } from "../../../controllers/user/alerts/alertsController";
 import { authenticate } from "../../../middlewares/auth";
 import { apiLimiter } from "../../../middlewares/rateLimiter";
+import { requireTenantAccess } from "../../../middlewares/tenantMiddleware";
 
 const alertsRouter = Router();
 
-alertsRouter.post('/register-alert', apiLimiter, authenticate, registerAlert);
+alertsRouter.post('/register-alert', authenticate, requireTenantAccess, apiLimiter, registerAlert);
 alertsRouter.post('/save-token', authenticate, saveUserToken);
 alertsRouter.post('/save-web-token', authenticate, saveWebPushToken);
 alertsRouter.get('/list', authenticate, listUserAlerts);

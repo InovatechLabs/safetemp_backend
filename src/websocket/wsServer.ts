@@ -6,14 +6,12 @@ import { createHmac } from 'crypto';
 import { enviarNotificacaoOffline, enviarNotificacaoOnline } from '../services/watchdog/watchdogService';
 import EventEmitter from 'events';
 
-
 const prisma = new PrismaClient();
 const deviceClients = new Map<string, WebSocket>();
 
 export const logEvents = new EventEmitter();
 
 // Controla quais dispositivos já tiveram alerta enviado
-// para não disparar múltiplas notificações
 const alertasEnviados = new Set<string>();
 
 export function initWebSocketServer(server: Server) {
@@ -23,6 +21,7 @@ export function initWebSocketServer(server: Server) {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const chipId = url.searchParams.get('chipId');
+    
     if (!chipId || !CHIP_ID_REGEX.test(chipId)) {
       ws.close(1008, 'chipId inválido.');
       return;
@@ -65,16 +64,15 @@ async function handleDeviceConnection(
   deviceClients.set(chipId, ws);
   console.log(`ESP32 conectado: ${chipId}`);
 
-  // Se o dispositivo reconectou após um alerta, notifica que voltou
   if (alertasEnviados.has(chipId)) {
     alertasEnviados.delete(chipId);
     console.log(`[WATCHDOG] ${chipId} reconectado. Enviando notificação de retorno.`);
-    enviarNotificacaoOnline(chipId).catch(console.error);
+    enviarNotificacaoOnline(chipId, device.greenhouseId).catch(console.error);
   }
 
   ws.send(JSON.stringify({ type: 'connected', message: 'Conexão autenticada.' }));
 
-    let isAlive = true;
+  let isAlive = true;
 
   ws.on('pong', () => {
     isAlive = true;
@@ -91,24 +89,20 @@ async function handleDeviceConnection(
     ws.ping(); 
   }, 15000); 
 
-  ws.on('message', (data) => handleDeviceMessage(ws, chipId, data.toString()));
+  ws.on('message', (data) => handleDeviceMessage(ws, chipId, device.id, device.greenhouseId, data.toString()));
 
   ws.on('close', () => {
     clearInterval(heartbeat); 
     deviceClients.delete(chipId);
     console.log(`ESP32 desconectado: ${chipId}`);
 
-    // Aguarda 30 segundos antes de notificar — evita alertas em reconexões rápidas
-    // (quedas momentâneas de rede, restart por OTA, etc.)
     setTimeout(async () => {
-      // Se o dispositivo já reconectou dentro dos 30s, não faz nada
       if (deviceClients.has(chipId)) return;
-      // Se já enviou alerta, não duplica
       if (alertasEnviados.has(chipId)) return;
 
       console.log(`[WATCHDOG] ${chipId} continua offline após 30s. Enviando alerta.`);
       alertasEnviados.add(chipId);
-      enviarNotificacaoOffline(chipId).catch(console.error);
+      enviarNotificacaoOffline(chipId, device.greenhouseId).catch(console.error);
     }, 30 * 1000);
   });
   
@@ -119,7 +113,7 @@ async function handleDeviceConnection(
   });
 }
 
-async function handleDeviceMessage(ws: WebSocket, chipId: string, raw: string) {
+async function handleDeviceMessage(ws: WebSocket, chipId: string, deviceId: number, greenhouseId: number | null, raw: string) {
   try {
     const msg = JSON.parse(raw);
 
@@ -132,7 +126,7 @@ async function handleDeviceMessage(ws: WebSocket, chipId: string, raw: string) {
       }
 
       const record = await prisma.temperatura.create({
-        data: { chipId, value, timestamp: new Date() },
+        data: { deviceId, value, timestamp: new Date() },
       });
 
       ws.send(JSON.stringify({ type: 'ack', id: record.id }));
@@ -143,10 +137,11 @@ async function handleDeviceMessage(ws: WebSocket, chipId: string, raw: string) {
     } else if (msg.type === 'system_log') {
 
       const { level, message } = msg;
-
-      const logData = { chipId, level, message, timestamp: new Date() };
+      
+      const logData = { chipId, greenhouseId, level, message, timestamp: new Date() };
+      
       if (level === 'WARN' || level === 'ERROR') {
-        await prisma.systemLog.create({ data: { chipId, level, message } });
+        await prisma.systemLog.create({ data: { deviceId, level, message } });
       }
 
       logEvents.emit('new_log', logData);

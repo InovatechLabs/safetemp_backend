@@ -14,7 +14,7 @@ export const NotificationController = {
     if (!req.user) return res.status(401).json({ message: 'Usuário não autenticado.' });
 
       const notifications = await prisma.notification.findMany({
-        where: { user_id: userId },
+        where: { userId },
         orderBy: { sent_at: 'desc' }, 
         take: 30, 
       });
@@ -32,7 +32,7 @@ export const NotificationController = {
 
       await prisma.notification.updateMany({
         where: { 
-          user_id: userId,
+          userId,
           read: false 
         },
         data: { read: true },

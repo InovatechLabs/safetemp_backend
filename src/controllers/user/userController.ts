@@ -52,7 +52,7 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
         });
 
         if (platform === 'web') {
-            const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
+            const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
             res.cookie('token', token, cookieOptions);
             return res.status(201).json({ success: true, message: 'Usuário criado e logado.' });
         }
@@ -159,8 +159,8 @@ export const logout = async (req: AuthenticatedRequest, res: Response) => {
       }).catch(() => {}); 
     }
 
-    res.clearCookie('token', cookieOptions);
-    res.clearCookie('refreshToken', refreshCookieOptions);
+    res.clearCookie('token', { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax' });
+    res.clearCookie('refreshToken', { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax' });
 
     return res.status(200).json({ message: 'Logout realizado com sucesso.' });
   } catch (error) {
@@ -189,6 +189,11 @@ export const logoutAll = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 export const getMe = async (req: AuthenticatedRequest, res: Response) => {
+
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ message: 'Não autorizado.' });
+  }
+
   try {
     const userId = req.user?.id;
 
@@ -206,11 +211,35 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ message: "Usuário não encontrado." });
     }
 
+    const accessibleGreenhouses = await prisma.greenhouse.findMany({
+      where: {
+        OR: [
+          { workspace: { users: { some: { userId } } } },
+          { isPublic: true }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        isPublic: true,
+        allowExperiments: true,
+
+        devices: {
+          select: {
+            id: true,
+            mac_address: true,
+            greenhouseId: true
+          }
+        }
+      }
+    });
+
     const responseData = {
       id: user.id,
       name: user.name,
       is2FAEnabled: user.is2FAEnabled,
       hasWebPush: user.webPushToken !== null, 
+      greenhouses: accessibleGreenhouses
     };
 
     // 4. Retornamos o objeto limpo

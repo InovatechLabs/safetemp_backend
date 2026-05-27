@@ -1,16 +1,17 @@
 import { Router } from 'express';
 import { exportPDF, getReportData, listReports, listReportsByDate, listReportsByInterval, listTodayReports } from '../../controllers/reports/reportsController';
 import { apiLimiter, heavyContentLimiter } from '../../middlewares/rateLimiter';
+import { requireTenantAccess } from '../../middlewares/tenantMiddleware';
+import { optionalAuth } from '../../middlewares/auth';
 
 const reportsRouter = Router();
 
-reportsRouter.get('/list', listReports);
-reportsRouter.get('/today', apiLimiter, listTodayReports);
-reportsRouter.get('/per-day', apiLimiter, listReportsByDate);
-reportsRouter.get('/interval', apiLimiter, listReportsByInterval);
-reportsRouter.get('/:id/data', apiLimiter, getReportData);
+reportsRouter.get('/list', optionalAuth, requireTenantAccess, listReports);
+reportsRouter.get('/today', optionalAuth, requireTenantAccess, apiLimiter, listTodayReports);
+reportsRouter.get('/per-day', optionalAuth, requireTenantAccess, apiLimiter, listReportsByDate);
+reportsRouter.get('/interval', optionalAuth, requireTenantAccess, apiLimiter, listReportsByInterval);
+reportsRouter.get('/:id/data', optionalAuth, requireTenantAccess, apiLimiter, getReportData);
 
-
-reportsRouter.get('/reportpdf/:id', heavyContentLimiter, exportPDF);
+reportsRouter.get('/reportpdf/:id', optionalAuth, requireTenantAccess, heavyContentLimiter, exportPDF);
 
 export default reportsRouter;

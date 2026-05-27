@@ -42,7 +42,7 @@ export const saveWebPushToken = async (req: AuthenticatedRequest, res: Response)
 
 export const registerAlert = async (req: AuthenticatedRequest, res: Response) => {
 
-    const { temperatura_min, temperatura_max, hora_inicio, hora_fim, nome, nota } = req.body;
+    const { greenhouseId, temperatura_min, temperatura_max, hora_inicio, hora_fim, nome, nota } = req.body;
     const timeZone = 'America/Sao_Paulo';
 
     try {
@@ -50,6 +50,9 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
  
         if (temperatura_min === undefined && temperatura_max === undefined) {
              return res.status(400).json({ message: 'Defina ao menos uma temperatura limite.' });
+        }
+        if (!greenhouseId) {
+             return res.status(400).json({ message: 'O ID da estufa (greenhouseId) é obrigatório.' });
         }
 
         const userId = req.user.id;
@@ -77,6 +80,7 @@ export const registerAlert = async (req: AuthenticatedRequest, res: Response) =>
         const alert = await prisma.alerts.create({
             data: {
                 user_id: userId,
+                greenhouseId: Number(greenhouseId),
                 temperatura_min: temperatura_min ? parseFloat(temperatura_min) : null,
                 temperatura_max: temperatura_max ? parseFloat(temperatura_max) : null,
                 hora_inicio: utcHoraInicio,
@@ -125,6 +129,11 @@ export const listUserAlerts = async (req: AuthenticatedRequest, res: Response) =
             where: { 
             user_id: userId 
             },
+            include: {
+        greenhouse: {
+            select: { name: true } 
+        }
+    },
             orderBy: {
                 criado_em: 'desc'   
             },

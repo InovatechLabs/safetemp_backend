@@ -22,6 +22,7 @@ import notificationsRouter from './routes/user/notifications/notificationsRoutes
 import insightsRouter from './routes/insights/insightsRoutes';
 import recoverPasswordRouter from './routes/recoverPassword/recoverPasswordRoutes';
 import deviceRouter from './routes/arduino/device/deviceRoutes';
+import greenhouseRouter from './routes/user/greenhouse/greenhouseRoutes';
 
 // ===================== DOCS API =====================
 
@@ -80,6 +81,7 @@ app.use("/api/comparison", comparisonRouter); // Comparação de dados
 app.use("/api/notifications", notificationsRouter); // Visualização e gerenciamento de notificações
 app.use("/api/insights", insightsRouter); // Geração de Insights com a IA
 app.use("/api/device", deviceRouter); // Manipulação de device
+app.use("/api/greenhouses", greenhouseRouter); // Manipulação de estufas
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec)); // Documentação da API
 

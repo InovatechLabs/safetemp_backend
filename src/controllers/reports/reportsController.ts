@@ -7,34 +7,37 @@ import { calcStats } from '../../utils/statistics';
 const prisma = new PrismaClient();
 
 export const listReports = async (req: Request, res: Response) => {
-
+    const greenhouse = (req as any).greenhouse;
     try {
-
-        const reports = await prisma.relatorios.findMany();
+        const reports = await prisma.relatorios.findMany({
+            where: { greenhouseId: greenhouse.id },
+            orderBy: { criado_em: 'desc' }
+        });
         return res.status(200).json(reports);
     } catch (error) {
-
         console.error('Erro ao buscar relatórios:', error);
-        return res.status(500).json({ message: 'Erro interno do servidor' })
+        return res.status(500).json({ message: 'Erro interno do servidor' });
     }
 };
 
 export const listTodayReports = async (req: Request, res: Response) => {
-
+    const greenhouse = (req as any).greenhouse;
     const { startOfDay, endOfDay } = getDayRange();
 
     try {
         const todayReports = await prisma.relatorios.findMany({
-            where: {
-                criado_em: {
-                    gte: startOfDay,
-                    lt: endOfDay
+           where: {
+                greenhouseId: greenhouse.id,
+                criado_em: { gte: startOfDay, lt: endOfDay }
+            },
+            orderBy: { criado_em: 'desc' },
+            include: {
+                greenhouse: {
+                    select: { name: true }
                 }
             }
         });
-
         return res.json(todayReports);
-
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "Erro interno do servidor" });
@@ -42,32 +45,25 @@ export const listTodayReports = async (req: Request, res: Response) => {
 };
 
 export const listReportsByDate = async (req: Request, res: Response) => {
+    const greenhouse = (req as any).greenhouse;
     const { data } = req.query;
 
-    if (!data || typeof data !== 'string') {
-        return res.status(400).json({ error: "Data é obrigatória (YYYY-MM-DD)" });
-    }
+    if (!data || typeof data !== 'string') return res.status(400).json({ error: "Data é obrigatória (YYYY-MM-DD)" });
 
     const dateInput = new Date(data);
-
-    if (isNaN(dateInput.getTime())) {
-        return res.status(400).json({ error: "Data inválida" });
-    }
+    if (isNaN(dateInput.getTime())) return res.status(400).json({ error: "Data inválida" });
 
     const { startOfDay, endOfDay } = getDayRange(dateInput);
 
     try {
         const reports = await prisma.relatorios.findMany({
             where: {
-                criado_em: {
-                    gte: startOfDay,
-                    lt: endOfDay
-                }
-            }
+                greenhouseId: greenhouse.id,
+                criado_em: { gte: startOfDay, lt: endOfDay }
+            },
+            orderBy: { criado_em: 'desc' }
         });
-
         return res.json(reports);
-
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "Erro interno do servidor" });
@@ -75,33 +71,27 @@ export const listReportsByDate = async (req: Request, res: Response) => {
 };
 
 export const listReportsByInterval = async (req: Request, res: Response) => {
+    const greenhouse = (req as any).greenhouse;
     const { inicio, fim } = req.query;
 
-    if (!inicio || !fim) {
-        return res.status(400).json({ error: "inicio e fim são obrigatórios (YYYY-MM-DD)" });
-    }
+    if (!inicio || !fim) return res.status(400).json({ error: "inicio e fim são obrigatórios (YYYY-MM-DD)" });
 
     const start = new Date(inicio as string);
     const end = new Date(fim as string);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return res.status(400).json({ error: "Datas inválidas" });
-    }
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: "Datas inválidas" });
 
     end.setDate(end.getDate() + 1);
 
     try {
         const reports = await prisma.relatorios.findMany({
             where: {
-                criado_em: {
-                    gte: start,
-                    lt: end
-                }
-            }
+                greenhouseId: greenhouse.id,
+                criado_em: { gte: start, lt: end }
+            },
+            orderBy: { criado_em: 'desc' }
         });
-
         return res.json(reports);
-
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "Erro ao buscar relatórios" });
@@ -109,25 +99,33 @@ export const listReportsByInterval = async (req: Request, res: Response) => {
 };
 
 export const exportPDF = async (req: Request, res: Response) => {
+    const greenhouse = (req as any).greenhouse;
     try {
         const { id } = req.params;
-
         const reportId = Number(id);
-        if (isNaN(reportId)) {
-            return res.status(400).json({ error: "ID inválido" });
-        }
 
-        const report = await prisma.relatorios.findUnique({ where: { id: reportId } });
+        if (isNaN(reportId)) return res.status(400).json({ error: "ID inválido" });
+
+        const report = await prisma.relatorios.findFirst({
+            where: {
+                id: reportId,
+                greenhouseId: greenhouse.id
+            },
+            include: {
+                greenhouse: {
+                    include: {
+                        devices: true 
+                    }
+                }
+            }
+        });
 
         if (!report) return res.status(404).json({ error: "Relatório não encontrado" });
 
         const pdf = await generateReportPDF(report);
-
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename=relatorio_${id}.pdf`);
-
         return res.send(pdf);
-
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Erro ao gerar PDF" });
@@ -135,13 +133,15 @@ export const exportPDF = async (req: Request, res: Response) => {
 };
 
 export const getReportData = async (req: Request, res: Response) => {
+    const greenhouse = (req as any).greenhouse;
     const { id } = req.params;
 
   try {
-    
     const reportId = Number(id);
-
-    const report = await prisma.relatorios.findUnique({ where: { id: reportId } });
+    const report = await prisma.relatorios.findFirst({ 
+        where: { id: reportId, greenhouseId: greenhouse.id } 
+    });
+    
     if (!report) return res.status(404).json({ message: "Relatório não encontrado" });
 
     const endTime = new Date(report.data);
@@ -149,10 +149,8 @@ export const getReportData = async (req: Request, res: Response) => {
 
     const records = await prisma.temperatura.findMany({
       where: {
-        timestamp: {
-          gte: startTime,
-          lte: endTime,
-        },
+        device: { greenhouseId: greenhouse.id },
+        timestamp: { gte: startTime, lte: endTime },
       },
       orderBy: { timestamp: 'asc' },
     });

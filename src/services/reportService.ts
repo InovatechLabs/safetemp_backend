@@ -1,19 +1,30 @@
-import puppeteer from "puppeteer";
+import puppeteer, { Browser } from "puppeteer";
 import { reportTemplate } from "../utils/templates/reportsTemplate";
 
-export async function generateReportPDF(report: any) {
-    let browser = null;
-    try {
-        browser = await puppeteer.launch({
+let globalBrowser: Browser | null = null;
+
+const getBrowser = async (): Promise<Browser> => {
+    if (!globalBrowser || !globalBrowser.connected) {
+        console.log("[Puppeteer] A iniciar nova instância global do Chromium...");
+        globalBrowser = await puppeteer.launch({
             headless: true,
             args: [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage", 
+                "--disable-dev-shm-usage",
             ],
         });
+    }
+    return globalBrowser;
+};
 
-        const page = await browser.newPage();
+export async function generateReportPDF(report: any) {
+    let page = null;
+    try {
+        const browser = await getBrowser();
+        
+        page = await browser.newPage();
+        
         const html = reportTemplate(report);
 
         await page.setContent(html, {
@@ -33,6 +44,6 @@ export async function generateReportPDF(report: any) {
         console.error("Erro na geração do PDF SafeTemp:", error);
         throw error;
     } finally {
-        if (browser) await browser.close();
+        if (page) await page.close();
     }
-};
+}
