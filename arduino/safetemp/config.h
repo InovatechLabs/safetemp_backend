@@ -16,7 +16,7 @@
 // ======================
 // ENDPOINTS DA API
 // ======================
-#define API_BASE_URL         "http://192.168.15.10:3000/api/"
+#define API_BASE_URL         "https://safetemp-api.onrender.com/api/"
 #define ENDPOINT_TEMP        API_BASE_URL "data/registertemp"
 #define ENDPOINT_OTA_VERSION API_BASE_URL "firmware/version"
 #define ENDPOINT_BATCH       API_BASE_URL "data/registertemp/batch"

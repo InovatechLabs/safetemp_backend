@@ -1,13 +1,12 @@
 #pragma once
 #include <Preferences.h>
 #include <HTTPClient.h>
-#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "config.h"
 #include "auth.h"
 #include "wifi_manager.h"
 #include "credentials.h"
-#include <WiFiClient.h>
 
 #define OFFLINE_MAX_RECORDS 1440
 #define BATCH_SIZE 50
@@ -144,7 +143,8 @@ void bufferFlush() {
 DeviceCredentials creds = loadCredentials();
 String signature = hmacSHA256(creds.deviceSecret, payloadToSign);
 
-        WiFiClient client;
+        WiFiClientSecure client;
+        client.setInsecure();
 
         HTTPClient http;
 

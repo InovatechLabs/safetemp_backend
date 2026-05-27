@@ -222,10 +222,10 @@ void initWebSocket() {
   // Monta a URL de conexão com os parâmetros de autenticação
   String path = "/ws?type=device&chipId=" + chipId + "&signature=" + signature;
 
-  wsClient.begin("192.168.15.10", 3000, path.c_str());
+  wsClient.beginSSL("safetemp-api.onrender.com", 443, path.c_str(), "", "");
   
   wsClient.onEvent(onWebSocketEvent);
-  wsClient.setReconnectInterval(10000); // tenta reconectar a cada 5s automaticamente
+  wsClient.setReconnectInterval(5000); // tenta reconectar a cada 5s automaticamente
 
   Serial.println("🔌 Iniciando conexão WebSocket...");
 }

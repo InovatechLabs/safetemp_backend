@@ -6,7 +6,7 @@
 #include "wifi_manager.h"
 #include "auth.h"
 #include "credentials.h"
-#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 
 // ======================
 // SENSOR E ENVIO DE TEMPERATURA
@@ -49,7 +49,8 @@ bool sendTemperature(float tempC) {
     DeviceCredentials creds = loadCredentials();
     String signature = hmacSHA256(creds.deviceSecret, payloadToSign);
 
-    WiFiClient client;
+    WiFiClientSecure client;
+    client.setInsecure();
 
     HTTPClient http;
 
