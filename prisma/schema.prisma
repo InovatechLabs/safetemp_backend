@@ -9,23 +9,59 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DIRECT_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
+// ------------------------------------------------------
+// CORE: TENANT & HIERARQUIA
+// ------------------------------------------------------
 
-model Temperatura {
+model Workspace {
   id        Int      @id @default(autoincrement())
-  chipId    String   @map("chipid") 
-  value     Float
-  timestamp DateTime @default(now())
+  name      String 
+  createdAt DateTime @default(now())
+
+  users       WorkspaceUser[]
+  greenhouses Greenhouse[]
 }
 
+// Tabela pivô para N:N (Múltiplos usuários podem acessar o mesmo Workspace)
+model WorkspaceUser {
+  id          Int    @id @default(autoincrement())
+  workspaceId Int
+  userId      Int
+  role        String @default("MEMBER") // "OWNER", "MEMBER" 
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId]) 
+}
+
+model Greenhouse {
+  id               Int     @id @default(autoincrement())
+  workspaceId      Int
+  name             String // Ex: "Estufa Principal", "Freezer 01"
+  isPublic         Boolean @default(false) // Define se qualquer um pode ver (Vitrine/Instituição)
+  allowExperiments Boolean @default(false) // Define se o frontend deve mostrar a aba de experimentos
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  devices      Device[]
+  experimentos Experimento[]
+  alerts       Alerts[] // Alertas agora pertencem à estufa, não ao usuário global
+  Relatorios   Relatorios[]
+}
+
+// ------------------------------------------------------
+// ENTIDADES EXISTENTES (REFATORADAS)
+// ------------------------------------------------------
+
 model User {
-  id                Int      @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   name              String
-  email             String   @unique
+  email             String    @unique
   password          String
   resetToken        String?
   resetTokenExpires DateTime?
@@ -34,77 +70,101 @@ model User {
   backupCode        String?
   expoPushToken     String?
   webPushToken      Json?
-  alerts            Alerts[]
-  notifications     Notification[]
-  experimentos Experimento[]
 
+  workspaces    WorkspaceUser[]
+  notifications Notification[]
   refreshTokens RefreshToken[]
+  experimentos  Experimento[] // Mantido para saber QUEM criou o experimento
+  Alerts        Alerts[]
 }
 
 model Device {
-  id          Int    @id @default(autoincrement())
-  mac_address String @unique
-  deviceSecret String
-  experimentos Experimento[]
-  systemLogs   SystemLog[]
+  id              Int          @id @default(autoincrement())
+  mac_address     String?      @unique
+  deviceSecret    String
+  activationToken String?   @unique
+  greenhouseId    Int? // Opcional no início para o caso de um dispositivo ainda não ativado/provisionado
+
+  greenhouse      Greenhouse?   @relation(fields: [greenhouseId], references: [id], onDelete: SetNull)
+  temperaturas    Temperatura[] // Agora a temperatura tem uma relação forte com o Device!
+  systemLogs      SystemLog[]
 }
 
-model Alerts {
-  id                Int      @id @default(autoincrement())
-  user_id           Int
-  temperatura_min   Float?
-  temperatura_max   Float?
-  hora_inicio       DateTime?
-  hora_fim          DateTime?
-  criado_em         DateTime  @default(now())
-  ativo             Boolean   @default(true)
-  notificacaoAtiva  Boolean   @default(false)
-  nome              String?
-  nota              String?
-  notifications     Notification[]
-
-  user              User      @relation(fields: [user_id], references: [id])
-}
-
-model Relatorios {
+model Temperatura {
   id        Int      @id @default(autoincrement())
-  chip_id   String
-  data      DateTime
-  relatorio String
-  resumo    String
+  deviceId  Int // Trocamos a string fraca 'chipId' por uma relação real
+  value     Float
+  timestamp DateTime @default(now())
 
-  criado_em DateTime @default(now())
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, timestamp]) // Index crucial para performance de gráficos e exportações
 }
 
 model Experimento {
-  id             Int       @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
+  greenhouseId   Int // Experimento agora ocorre DENTRO de uma estufa
+  userId         Int // Usuário responsável
   nome           String
-  objetivo       String?   @db.Text
+  objetivo       String?  @db.Text
   temp_min_ideal Float
   temp_max_ideal Float
-  data_inicio    DateTime  @default(now())
+  data_inicio    DateTime @default(now())
   data_fim       DateTime
-  ativo          Boolean   @default(true)
-  responsavel    User      @relation(fields: [userId], references: [id])
-  userId         Int
-  dispositivo    Device    @relation(fields: [deviceId], references: [id])
-  deviceId       Int
-  relatorio      String?   @db.Text
+  ativo          Boolean  @default(true)
+  relatorio      String?  @db.Text
+
+  greenhouse  Greenhouse @relation(fields: [greenhouseId], references: [id], onDelete: Cascade)
+  responsavel User       @relation(fields: [userId], references: [id])
+}
+
+model Alerts {
+  id               Int       @id @default(autoincrement())
+  user_id           Int // O "dono" do alerta (quem vai receber o push)
+  greenhouseId     Int // Qual estufa esse alerta está vigiando
+  temperatura_min  Float?
+  temperatura_max  Float?
+  hora_inicio      DateTime?
+  hora_fim         DateTime?
+  criado_em        DateTime  @default(now())
+  ativo            Boolean   @default(true)
+  notificacaoAtiva Boolean   @default(false)
+  nome             String?
+  nota             String?
+
+  user          User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  greenhouse    Greenhouse     @relation(fields: [greenhouseId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([greenhouseId]) // Acelera o background job (Cron) na hora de buscar os alertas de uma estufa
+}
+
+model Relatorios {
+  id           Int      @id @default(autoincrement())
+  greenhouseId Int // O relatório da IA agora avalia a Estufa inteira, não um chip isolado
+  data         DateTime
+  relatorio    String
+  resumo       String
+  criado_em    DateTime @default(now())
+
+  greenhouse Greenhouse @relation(fields: [greenhouseId], references: [id], onDelete: Cascade)
+
+  @@index([greenhouseId, data]) // Crucial para o frontend buscar o histórico rápido
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  user_id   Int
-  alert_id  Int?     
-  title     String   
-  content   String   
-  sent_at   DateTime @default(now())
-  read      Boolean  @default(false) 
+  id      Int      @id @default(autoincrement())
+  userId  Int
+  alertId Int?
+  title   String
+  content String
+  sent_at DateTime @default(now())
+  read    Boolean  @default(false)
 
-  user      User     @relation(fields: [user_id], references: [id])
-  alert     Alerts?  @relation(fields: [alert_id], references: [id], onDelete: SetNull)
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alert Alerts? @relation(fields: [alertId], references: [id], onDelete: SetNull)
 
-  @@index([user_id]) // Index para buscas rápidas de histórico por usuário
+  @@index([userId])
 }
 
 model RefreshToken {
@@ -121,10 +181,10 @@ model RefreshToken {
 
 model SystemLog {
   id        Int      @id @default(autoincrement())
-  chipId    String
-  level     String   // "INFO", "WARN", "ERROR"
+  deviceId  Int // Trocado de chipId (String) para deviceId (Relação Real)
+  level     String // "INFO", "WARN", "ERROR"
   message   String
   timestamp DateTime @default(now())
 
-  device    Device   @relation(fields: [chipId], references: [mac_address])
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 }

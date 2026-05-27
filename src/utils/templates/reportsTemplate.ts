@@ -26,6 +26,13 @@ export function reportTemplate(relatorio: any) {
              .replace(/\n{2,}/g, "</p><p>")
              .replace(/\n/g, "<br>");
 
+  const media = Number(resumo.media) || 0;
+  const min = Number(resumo.min) || 0;
+  const max = Number(resumo.max) || 0;
+  const std = Number(resumo.desvioPadrao || resumo.std) || 0; 
+  const outliers = Number(resumo.totalOutliers) || 0;
+  const registros = Number(resumo.registros) || 0;
+
 return `
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -175,13 +182,16 @@ return `
     <div class="info-grid">
       <div class="info-card">
         <span class="info-label">Identificação</span>
-        <div class="info-value">Dispositivo (Chip ID): ${relatorio.chip_id}</div>
-        <div class="info-value" style="font-size: 11px; color: #999;">ID Relatório: #${relatorio.id}</div>
-        <div class="info-value" style="font-size: 11px; color: #999;">Gerado em: ${formatIsoToBR(relatorio.criado_em)}</div>
+        <div class="info-value">Ambiente: ${relatorio.greenhouse?.name || "Desconhecida"}</div>
+        <div class="info-value">
+          Dispositivo (MAC): ${relatorio.greenhouse?.devices[0]?.mac_address || "Nenhum dispositivo"}
+        </div>
+      <div class="info-value" style="font-size: 11px; color: #999;">ID Relatório: #${relatorio.id || "--"}</div>
+      <div class="info-value" style="font-size: 11px; color: #999;">Gerado em: ${formatDateBR(relatorio.criado_em)}</div>
       </div>
       <div class="info-card">
         <span class="info-label">Período de Análise</span>
-        <div class="info-value">${formatIsoToBR(resumo.intervalo)}</div>
+        <div class="info-value">${resumo.intervalo || "Período não informado"}</div>  
       </div>
     </div>
 
@@ -189,15 +199,15 @@ return `
     <div class="stats-container">
       <div class="stat-box stat-avg">
         <span class="stat-label">Média Geral</span>
-        <div class="stat-val">${resumo.media.toFixed(2)}°C</div>
+        <div class="stat-val">${media.toFixed(2)}°C</div>
       </div>
       <div class="stat-box stat-min">
         <span class="stat-label">Mínima</span>
-        <div class="stat-val">${resumo.min.toFixed(2)}°C</div>
+        <div class="stat-val">${min.toFixed(2)}°C</div>
       </div>
       <div class="stat-box stat-max">
         <span class="stat-label">Máxima</span>
-        <div class="stat-val">${resumo.max.toFixed(2)}°C</div>
+        <div class="stat-val">${max.toFixed(2)}°C</div>
       </div>
     </div>
 
@@ -217,24 +227,24 @@ return `
       <tbody>
         <tr>
           <td>Amostras Processadas</td>
-          <td>${resumo.registros} registros</td>
+          <td>${registros} registros</td>
         </tr>
         <tr>
           <td>Desvio Padrão</td>
-          <td>${resumo.std.toFixed(3)} °C</td>
+          <td>${std.toFixed(3)} °C</td>
         </tr>
         <tr>
           <td>Outliers (Anomalias)</td>
-          <td style="color: ${resumo.totalOutliers > 0 ? '#e11d48' : '#10b981'}">
-            ${resumo.totalOutliers} detectados
+          <td style="color: ${outliers > 0 ? '#e11d48' : '#10b981'}">
+            ${outliers} detectados
           </td>
         </tr>
       </tbody>
     </table>
 
     <div class="footer">
-      Este documento é uma análise automática gerada pelo SafeTemp via Microsoft Azure.<br>
-      Autenticidade garantida por Chip ID: ${relatorio.chip_id} • Gerado em: ${formatDateBR(new Date())}
+      Este documento é uma análise automática gerada pelo sistema SafeTemp.<br>
+      Autenticidade garantida por MAC Address: ${relatorio.greenhouse?.devices[0]?.mac_address || "--"} • Documento gerado em: ${formatDateBR(new Date())}
     </div>
   </div>
 </body>

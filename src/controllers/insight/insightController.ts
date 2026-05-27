@@ -1,12 +1,15 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import * as insightService from '../../services/insights/generateInsight';
+import { TenantRequest } from '../../middlewares/tenantMiddleware';
 
-export const generateInsight = async (req: Request, res: Response) => {
+export const generateInsight = async (req: TenantRequest, res: Response) => {
   try {
 
     const userContext = req.body; 
 
-    const result = await insightService.generateQuickInsight(userContext);
+    const greenhouseId = req.greenhouse.id;
+
+    const result = await insightService.generateQuickInsight(userContext, greenhouseId);
     
     return res.json(result);
   } catch (error) {

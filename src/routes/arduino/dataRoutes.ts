@@ -2,19 +2,26 @@ import { Router, text } from "express";
 import { registerTemperature, getLastRecord, getTemperatures, getTemperatures6h, getHistory1h, exportCSV, batchRegisterTemperature } from "../../controllers/arduino/dataController";
 import { heavyContentLimiter, apiLimiter } from "../../middlewares/rateLimiter";
 import { authenticateDevice } from "../../middlewares/authenticateDevice";
+import { requireTenantAccess } from "../../middlewares/tenantMiddleware";
 import { logEvents } from "../../websocket/wsServer";
+import { PrismaClient } from "@prisma/client";
+import { authenticate, optionalAuth } from "../../middlewares/auth";
+
+const prisma = new PrismaClient();
 
 const dataRouter = Router();
 
 dataRouter.post('/registertemp', text({ type: 'application/json' }), authenticateDevice, registerTemperature);
 dataRouter.post('/registertemp/batch', text({ type: 'application/json' }), authenticateDevice, batchRegisterTemperature);
-dataRouter.get("/lastdata", apiLimiter, getLastRecord);
-dataRouter.get("/history", apiLimiter, getTemperatures);
-dataRouter.get("/history6h", apiLimiter, getTemperatures6h);
-dataRouter.get("/history1h", apiLimiter, getHistory1h);
-dataRouter.get("/exportcsv", heavyContentLimiter, exportCSV);
 
-dataRouter.get('/system-logs/stream', (req, res) => {
+dataRouter.get("/lastdata", apiLimiter, optionalAuth, requireTenantAccess, getLastRecord);
+dataRouter.get("/history", apiLimiter, optionalAuth, requireTenantAccess, getTemperatures);
+dataRouter.get("/history6h", apiLimiter, optionalAuth, requireTenantAccess, getTemperatures6h);
+dataRouter.get("/history1h", apiLimiter, optionalAuth, requireTenantAccess, getHistory1h);
+dataRouter.get("/exportcsv", heavyContentLimiter, optionalAuth, requireTenantAccess, exportCSV)
+
+dataRouter.get('/system-logs/stream', authenticate, requireTenantAccess, (req, res) => {
+  const greenhouse = (req as any).greenhouse;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -28,8 +35,11 @@ dataRouter.get('/system-logs/stream', (req, res) => {
   };
   res.write(`data: ${JSON.stringify(welcomeLog)}\n\n`);
 
-  const sendLog = (log: any) => {
-    res.write(`data: ${JSON.stringify(log)}\n\n`);
+  const sendLog = async (log: any) => {
+    const device = await prisma.device.findUnique({ where: { mac_address: log.chipId } });
+    if (device && device.greenhouseId === greenhouse.id) {
+        res.write(`data: ${JSON.stringify(log)}\n\n`);
+    }
   };
   
   logEvents.on('new_log', sendLog);

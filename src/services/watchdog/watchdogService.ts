@@ -4,48 +4,82 @@ import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 const prisma = new PrismaClient();
 const expo = new Expo();
 
-export const enviarNotificacaoOffline = async (chipId: string) => {
-  const users = await prisma.user.findMany({
-    where: { expoPushToken: { not: null } }
+export const enviarNotificacaoOffline = async (chipId: string, greenhouseId: number | null) => {
+  if (!greenhouseId) return;
+
+  const greenhouse = await prisma.greenhouse.findUnique({
+    where: { id: greenhouseId },
+    include: {
+      workspace: {
+        include: {
+          users: {
+            include: { user: true }
+          }
+        }
+      }
+    }
   });
+
+  if (!greenhouse) return;
 
   const messages: ExpoPushMessage[] = [];
 
-  for (const user of users) {
+  for (const workspaceUser of greenhouse.workspace.users) {
+    const user = workspaceUser.user;
+    
     if (user.expoPushToken && Expo.isExpoPushToken(user.expoPushToken)) {
       messages.push({
         to: user.expoPushToken,
         sound: 'default',
-        title: '🚨 Estufa Desconectada!',
-        body: `O dispositivo ${chipId} perdeu conexão. Verifique energia e internet no local.`,
+        title: `🚨 Alerta de Conexão: ${greenhouse.name}`,
+        body: `A estufa perdeu conexão com a rede. Verifique a energia e a internet no local.`,
         priority: 'high',
       });
     }
   }
 
-  await enviarChunks(messages);
+  if (messages.length > 0) {
+    await enviarChunks(messages);
+  }
 };
 
-export const enviarNotificacaoOnline = async (chipId: string) => {
-  const users = await prisma.user.findMany({
-    where: { expoPushToken: { not: null } }
+export const enviarNotificacaoOnline = async (chipId: string, greenhouseId: number | null) => {
+  if (!greenhouseId) return;
+
+  const greenhouse = await prisma.greenhouse.findUnique({
+    where: { id: greenhouseId },
+    include: {
+      workspace: {
+        include: {
+          users: {
+            include: { user: true }
+          }
+        }
+      }
+    }
   });
+
+  if (!greenhouse) return;
 
   const messages: ExpoPushMessage[] = [];
 
-  for (const user of users) {
+  for (const workspaceUser of greenhouse.workspace.users) {
+    const user = workspaceUser.user;
+    
     if (user.expoPushToken && Expo.isExpoPushToken(user.expoPushToken)) {
       messages.push({
         to: user.expoPushToken,
         sound: 'default',
-        title: '✅ Estufa Reconectada!',
-        body: `O dispositivo ${chipId} voltou a operar normalmente.`,
+        title: `✅ Conexão Restabelecida: ${greenhouse.name}`,
+        body: `A estufa voltou a operar e comunicar normalmente.`,
         priority: 'normal',
       });
     }
   }
 
-  await enviarChunks(messages);
+  if (messages.length > 0) {
+    await enviarChunks(messages);
+  }
 };
 
 const enviarChunks = async (messages: ExpoPushMessage[]) => {
@@ -61,8 +95,6 @@ const enviarChunks = async (messages: ExpoPushMessage[]) => {
   }
 };
 
-// Mantido para compatibilidade — não faz mais nada pois o watchdog
-// agora é orientado a eventos via WebSocket
 export const startWatchdog = () => {
   console.log('Serviço de Watchdog iniciado (modo WebSocket).');
 };

@@ -8,66 +8,69 @@ import { buildDayRange } from "../../utils/dateRange";
 const prisma = new PrismaClient();
 
 export const compareTemperatureRanges = async (req: Request, res: Response) => {
+    const greenhouse = (req as any).greenhouse;
 
     const { rangeA, rangeB } = req.body;
     const { start: startA, end: endA } = buildDayRange(rangeA);
     const { start: startB, end: endB } = buildDayRange(rangeB);
 
-     try {
-    const recordsA = await prisma.temperatura.findMany({
-      where: {
-        timestamp: {
-            gte: startA,
-            lte: endA
+    try {
+      const recordsA = await prisma.temperatura.findMany({
+        where: {
+          device: { greenhouseId: greenhouse.id }, 
+          timestamp: {
+              gte: startA,
+              lte: endA
+          },
         },
-      },
-      orderBy: { timestamp: "asc" },
-    });
-
-    const recordsB = await prisma.temperatura.findMany({
-      where: {
-        timestamp: {
-          gte: startB,
-          lte: endB,
-        },
-      },
-      orderBy: { timestamp: "asc" },
-    });
-
-    if (recordsA.length === 0 || recordsB.length === 0) {
-      return res.status(400).json({
-        message: "Um dos intervalos não possui dados suficientes",
+        orderBy: { timestamp: "asc" },
       });
-    }
 
-    const valuesA = recordsA.map(r => r.value);
-    const valuesB = recordsB.map(r => r.value);
+      const recordsB = await prisma.temperatura.findMany({
+        where: {
+          device: { greenhouseId: greenhouse.id }, 
+          timestamp: {
+            gte: startB,
+            lte: endB,
+          },
+        },
+        orderBy: { timestamp: "asc" },
+      });
 
-    const statsA = calcStats(valuesA) as TemperatureStats;
-    const statsB = calcStats(valuesB) as TemperatureStats;
+      if (recordsA.length === 0 || recordsB.length === 0) {
+        return res.status(400).json({
+          message: "Um dos intervalos não possui dados suficientes nesta estufa.",
+        });
+      }
 
-    const balanceAnalysis = sampleBalance(valuesA.length, valuesB.length);
-    const comparison = compareStats(statsA, statsB);
-    const summary = buildComparisonSummary(comparison, balanceAnalysis);
+      const valuesA = recordsA.map(r => r.value);
+      const valuesB = recordsB.map(r => r.value);
 
-    res.json({
-      rangeA: {
-        interval: rangeA,
-        totalRecords: valuesA.length,
-        statistics: statsA,
-      },
-      rangeB: {
-        interval: rangeB,
-        totalRecords: valuesB.length,
-        statistics: statsB,
-      },
-      comparison,
-      balanceAnalysis,
-      summary,
-    });
+      const statsA = calcStats(valuesA) as TemperatureStats;
+      const statsB = calcStats(valuesB) as TemperatureStats;
+
+      const balanceAnalysis = sampleBalance(valuesA.length, valuesB.length);
+      const comparison = compareStats(statsA, statsB);
+      const summary = buildComparisonSummary(comparison, balanceAnalysis);
+
+      res.json({
+        rangeA: {
+          interval: rangeA,
+          totalRecords: valuesA.length,
+          statistics: statsA,
+        },
+        rangeB: {
+          interval: rangeB,
+          totalRecords: valuesB.length,
+          statistics: statsB,
+        },
+        comparison,
+        balanceAnalysis,
+        summary,
+      });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Erro ao comparar intervalos" });
+    res.status(500).json({ message: "Erro ao comparar intervalos." });
   }
 };

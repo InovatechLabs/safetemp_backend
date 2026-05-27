@@ -3,14 +3,14 @@ import { getLastHourData } from '../dataService';
 import { getSampling } from '../../utils/analytics/sampling';
 import { InsightRequest, InsightStatistics } from '../../utils/types/insights';
 
-export const generateQuickInsight = async (userContext: any) => {
+export const generateQuickInsight = async (userContext: any, greenhouseId: number) => {
 
     const SECRET_KEY = process.env.SECRET_KEY as string;
     const PYTHON_API_URL = process.env.PYTHON_API_URL as string;
 
     if (!SECRET_KEY || !PYTHON_API_URL) throw new Error('Variáveis de ambiente não configuradas corretamente ou ausentes.')
 
-    const { records, statistics: baseStats } = await getLastHourData();
+    const { records, statistics: baseStats } = await getLastHourData(greenhouseId);
 
     if (!records || records.length === 0) return { error: "Sem dados" };
 

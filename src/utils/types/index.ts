@@ -1,6 +1,8 @@
 export interface TemperatureRecord {
   id: number;
   chipId: string;
+  deviceId: number;
+  greenhouseName: string;
   value: number;
   timestamp: string;
 }

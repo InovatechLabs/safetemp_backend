@@ -27,10 +27,17 @@ const ESP_COMMAND_WHITELIST = [
 ];
 
 export const sendCommand = async (req: Request, res: Response) => {
+  const greenhouse = (req as any).greenhouse; // Opcional, dependendo se a rota usar requireTenantAccess
   const { chipId } = req.params;
   const { command } = req.body;
 
   if (!command) return res.status(400).json({ message: 'command é obrigatório.' });
+
+  const device = await prisma.device.findUnique({ where: { mac_address: chipId } });
+  
+  // Se a rota usar requireTenantAccess, descomente a linha abaixo para barrar comandos externos:
+  if (!device || device.greenhouseId !== greenhouse.id) return res.status(403).json({ message: 'Acesso negado ao hardware.' });
+  if (!device) return res.status(404).json({ message: 'Dispositivo não encontrado no banco.' });
 
   if (command.startsWith('sys:') || command.startsWith('db:')) {
     const action = command.split(':')[1];
@@ -39,7 +46,7 @@ export const sendCommand = async (req: Request, res: Response) => {
     switch (action) {
       case 'last_warn':
         const lastWarn = await prisma.systemLog.findFirst({
-          where: { chipId, level: 'WARN' },
+          where: { deviceId: device.id, level: 'WARN' },
           orderBy: { timestamp: 'desc' },
         });
         msg = lastWarn ? `[DB] Último Alerta: ${lastWarn.message}` : "[DB] Nenhum alerta WARN encontrado.";
@@ -47,7 +54,7 @@ export const sendCommand = async (req: Request, res: Response) => {
 
       case 'last_error':
         const lastError = await prisma.systemLog.findFirst({
-          where: { chipId, level: 'ERROR' },
+          where: { deviceId: device.id, level: 'ERROR' }, 
           orderBy: { timestamp: 'desc' },
         });
         msg = lastError ? `[DB] Último Erro: ${lastError.message}` : "[DB] Nenhum erro encontrado.";
@@ -59,7 +66,7 @@ export const sendCommand = async (req: Request, res: Response) => {
         break;
 
       case 'log_size':
-        const count = await prisma.systemLog.count({ where: { chipId } });
+        const count = await prisma.systemLog.count({ where: { deviceId: device.id } }); // Alterado chipId para deviceId
         msg = `[DB] O dispositivo possui ${count} logs persistidos no banco.`;
         break;
 
@@ -81,7 +88,6 @@ export const sendCommand = async (req: Request, res: Response) => {
     return res.status(403).json({ message: 'Comando de hardware não autorizado.' });
   }
 
-  // Envio via WebSocket
   const sent = sendCommandToDevice(chipId, { type: 'command', command: cleanCommand, sentAt: cleanCommand === 'ping' ? Date.now() : undefined });
 
   if (!sent) {

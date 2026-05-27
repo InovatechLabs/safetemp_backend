@@ -8,6 +8,7 @@
 #include <WiFiClientSecure.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "credentials.h"
 #include "esp_adc_cal.h"
 
 WebSocketsClient wsClient;
@@ -214,13 +215,14 @@ else if (strcmp(command, "voltage") == 0) {
 }
 
 void initWebSocket() {
-  // Assinatura de autenticação: HMAC-SHA256(secret, chipId)
-  String signature = hmacSHA256(DEVICE_SECRET, chipId);
+
+  DeviceCredentials creds = loadCredentials();
+  String signature = hmacSHA256(creds.deviceSecret, chipId);
 
   // Monta a URL de conexão com os parâmetros de autenticação
   String path = "/ws?type=device&chipId=" + chipId + "&signature=" + signature;
 
-  wsClient.beginSSL("safetemp-api.onrender.com", 443, path.c_str(), "", "");
+  wsClient.begin("192.168.15.10", 3000, path.c_str());
   
   wsClient.onEvent(onWebSocketEvent);
   wsClient.setReconnectInterval(10000); // tenta reconectar a cada 5s automaticamente
